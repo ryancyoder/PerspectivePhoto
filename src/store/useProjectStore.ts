@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { v4 as uuid } from 'uuid';
-import type { PlacedStamp, PerspectiveConfig, ToolMode, HistoryEntry, ViewMode, ScaleReference } from '../types';
+import type { PlacedStamp, PerspectiveConfig, ToolMode, HistoryEntry, ViewMode, PlanViewConfig } from '../types';
+import { computeHomography, invertHomography } from '../engine/homography';
 import { createDefaultPerspective } from '../engine/perspective';
 
 interface ProjectState {
@@ -29,7 +30,7 @@ interface ProjectState {
 
   // View
   viewMode: ViewMode;
-  scaleReference: ScaleReference | null;
+  planView: PlanViewConfig;
 
   // Sidebar
   sidebarCollapsed: boolean;
@@ -57,7 +58,10 @@ interface ProjectState {
 
   setToolMode: (mode: ToolMode) => void;
   setViewMode: (mode: ViewMode) => void;
-  setScaleReference: (ref: ScaleReference | null) => void;
+  setPlanImage: (dataUrl: string, width: number, height: number) => void;
+  addMatchedPoint: (photoX: number, photoY: number, planX: number, planY: number) => void;
+  removeMatchedPoint: (id: string) => void;
+  clearMatchedPoints: () => void;
   toggleSidebar: () => void;
   setPropertiesTrayOpen: (open: boolean) => void;
 
@@ -86,7 +90,14 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   pendingStampAssetId: null,
   toolMode: 'select',
   viewMode: 'photo',
-  scaleReference: null,
+  planView: {
+    image: null,
+    imageWidth: 0,
+    imageHeight: 0,
+    matchedPoints: [],
+    homography: null,
+    inverseHomography: null,
+  },
   sidebarCollapsed: false,
   propertiesTrayOpen: false,
 
@@ -183,7 +194,59 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   setToolMode: (mode) => set({ toolMode: mode, selectedStampId: null, pendingStampAssetId: null }),
   setViewMode: (mode) => set({ viewMode: mode }),
-  setScaleReference: (ref) => set({ scaleReference: ref }),
+
+  setPlanImage: (dataUrl, width, height) =>
+    set((state) => ({
+      planView: {
+        ...state.planView,
+        image: dataUrl,
+        imageWidth: width,
+        imageHeight: height,
+        matchedPoints: [],
+        homography: null,
+        inverseHomography: null,
+      },
+    })),
+
+  addMatchedPoint: (photoX, photoY, planX, planY) =>
+    set((state) => {
+      const points = [...state.planView.matchedPoints, { id: uuid(), photoX, photoY, planX, planY }];
+      const homography = points.length >= 2 ? computeHomography(points) : null;
+      const inv = homography ? invertHomography(homography) : null;
+      return {
+        planView: {
+          ...state.planView,
+          matchedPoints: points,
+          homography,
+          inverseHomography: inv,
+        },
+      };
+    }),
+
+  removeMatchedPoint: (id) =>
+    set((state) => {
+      const points = state.planView.matchedPoints.filter((p) => p.id !== id);
+      const homography = points.length >= 2 ? computeHomography(points) : null;
+      const inv = homography ? invertHomography(homography) : null;
+      return {
+        planView: {
+          ...state.planView,
+          matchedPoints: points,
+          homography,
+          inverseHomography: inv,
+        },
+      };
+    }),
+
+  clearMatchedPoints: () =>
+    set((state) => ({
+      planView: {
+        ...state.planView,
+        matchedPoints: [],
+        homography: null,
+        inverseHomography: null,
+      },
+    })),
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
   setPropertiesTrayOpen: (open) => set({ propertiesTrayOpen: open }),
 

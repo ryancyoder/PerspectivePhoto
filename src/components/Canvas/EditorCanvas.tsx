@@ -6,7 +6,7 @@ import { BackgroundImage } from './BackgroundImage';
 import { PerspectiveGuides } from './PerspectiveGuides';
 import { PlantStamp } from './PlantStamp';
 import { CalibrationOverlay } from './CalibrationOverlay';
-import { ScaleSetup } from '../PlanView/ScaleSetup';
+import { PointMatcher } from '../PlanView/PointMatcher';
 
 interface EditorCanvasProps {
   stageRef: React.RefObject<Konva.Stage | null>;
@@ -72,9 +72,9 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
             y: (pos.y - currentY) / currentScale,
           };
 
-          // Scale setup point picking takes priority
-          if (ScaleSetup.activeStep === 'point1' || ScaleSetup.activeStep === 'point2') {
-            ScaleSetup.onCanvasTap(canvasPos.x, canvasPos.y);
+          // Point matching takes priority
+          if (PointMatcher.activeStep === 'photo') {
+            PointMatcher.onCanvasTap(canvasPos.x, canvasPos.y);
             return;
           }
 

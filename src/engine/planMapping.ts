@@ -1,4 +1,4 @@
-import type { PerspectiveConfig, ScaleReference } from '../types';
+import type { PerspectiveConfig } from '../types';
 
 const MIN_RATIO = 0.08;
 const MAX_RATIO = 1.5;
@@ -69,14 +69,10 @@ export function computeCanopyRadius(
 }
 
 /**
- * Compute feet-per-plan-unit from a user's manual scale reference.
- *
- * The user taps two points on the photo and enters the real-world
- * distance between them. We convert both to plan coords and derive
- * the conversion factor.
+ * Compute feet-per-plan-unit from two photo points and a real-world distance.
  */
 export function computeFeetPerPlanUnit(
-  ref: Omit<ScaleReference, 'feetPerPlanUnit'>,
+  ref: { point1: { x: number; y: number }; point2: { x: number; y: number }; distanceFt: number },
   perspective: PerspectiveConfig,
   planScale = DEFAULT_PLAN_SCALE
 ): number {

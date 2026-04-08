@@ -21,12 +21,14 @@ interface ToolbarProps {
 
 export function Toolbar({ stageRef }: ToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const planInputRef = useRef<HTMLInputElement>(null);
 
   const toolMode = useProjectStore((s) => s.toolMode);
   const setToolMode = useProjectStore((s) => s.setToolMode);
   const viewMode = useProjectStore((s) => s.viewMode);
   const setViewMode = useProjectStore((s) => s.setViewMode);
   const setBackgroundImage = useProjectStore((s) => s.setBackgroundImage);
+  const setPlanImage = useProjectStore((s) => s.setPlanImage);
   const selectedStampId = useProjectStore((s) => s.selectedStampId);
   const removeStamp = useProjectStore((s) => s.removeStamp);
   const undo = useProjectStore((s) => s.undo);
@@ -58,6 +60,30 @@ export function Toolbar({ stageRef }: ToolbarProps) {
       e.target.value = '';
     },
     [setBackgroundImage]
+  );
+
+  const handlePlanUpload = useCallback(() => {
+    planInputRef.current?.click();
+  }, []);
+
+  const handlePlanFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target?.result as string;
+        const img = new Image();
+        img.onload = () => {
+          setPlanImage(dataUrl, img.naturalWidth, img.naturalHeight);
+          setViewMode('plan');
+        };
+        img.src = dataUrl;
+      };
+      reader.readAsDataURL(file);
+      e.target.value = '';
+    },
+    [setPlanImage, setViewMode]
   );
 
   const handleExport = useCallback(() => {
@@ -101,12 +127,22 @@ export function Toolbar({ stageRef }: ToolbarProps) {
       <ToolButton onClick={handleUpload} label="Upload Photo">
         <Upload size={20} />
       </ToolButton>
+      <ToolButton onClick={handlePlanUpload} label="Upload Plan Image">
+        <LayoutGrid size={20} />
+      </ToolButton>
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*"
         className="hidden"
         onChange={handleFileChange}
+      />
+      <input
+        ref={planInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handlePlanFileChange}
       />
 
       <div className="w-px h-8 bg-gray-200 mx-1" />

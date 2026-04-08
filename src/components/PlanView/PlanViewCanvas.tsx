@@ -1,11 +1,11 @@
-import { useRef, useEffect, useCallback, useMemo } from 'react';
-import { Stage, Layer, Rect, Text } from 'react-konva';
+import { useRef, useEffect, useCallback, useState } from 'react';
+import { Stage, Layer, Image as KonvaImage, Circle, Text, Group } from 'react-konva';
 import Konva from 'konva';
 import { useProjectStore } from '../../store/useProjectStore';
-import { photoToPlan, planToPhoto, computeCanopyRadius, computePlanBounds, DEFAULT_PLAN_SCALE } from '../../engine/planMapping';
+import { applyHomography } from '../../engine/homography';
 import { getAssetById } from '../../engine/stampAssets';
-import { PlanGrid } from './PlanGrid';
-import { PlanStampCircle } from './PlanStampCircle';
+import { useCustomStampStore } from '../../store/useCustomStampStore';
+import { PointMatcher } from './PointMatcher';
 
 export function PlanViewCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -14,84 +14,86 @@ export function PlanViewCanvas() {
   const canvasWidth = useProjectStore((s) => s.canvasWidth);
   const canvasHeight = useProjectStore((s) => s.canvasHeight);
   const stamps = useProjectStore((s) => s.stamps);
-  const perspective = useProjectStore((s) => s.perspective);
   const selectedStampId = useProjectStore((s) => s.selectedStampId);
   const selectStamp = useProjectStore((s) => s.selectStamp);
+  const updateStamp = useProjectStore((s) => s.updateStamp);
   const addStamp = useProjectStore((s) => s.addStamp);
+  const pushHistory = useProjectStore((s) => s.pushHistory);
   const pendingStampAssetId = useProjectStore((s) => s.pendingStampAssetId);
-  const scaleReference = useProjectStore((s) => s.scaleReference);
+  const planView = useProjectStore((s) => s.planView);
   const setCanvasSize = useProjectStore((s) => s.setCanvasSize);
 
-  // Compute plan positions for all stamps
-  const planStamps = useMemo(() => {
-    return stamps.map((stamp) => {
-      const { planX, planY } = photoToPlan(stamp.x, stamp.y, perspective, DEFAULT_PLAN_SCALE);
-      const isCustom = stamp.assetId.startsWith('custom-');
-      const asset = isCustom ? null : getAssetById(stamp.assetId);
-      const defaultWidth = asset?.defaultWidth ?? 100;
-      const radius = computeCanopyRadius(defaultWidth, stamp.manualScale);
-      return { stamp, planX, planY, radius, defaultWidth };
-    });
-  }, [stamps, perspective]);
+  const [planImage, setPlanImage] = useState<HTMLImageElement | null>(null);
+  const [stageScale, setStageScale] = useState(1);
+  const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
 
-  // Compute bounds to fit all stamps
-  const bounds = useMemo(() => {
-    const stampData = stamps.map((s) => {
-      const isCustom = s.assetId.startsWith('custom-');
-      const asset = isCustom ? null : getAssetById(s.assetId);
-      return { x: s.x, y: s.y, manualScale: s.manualScale, defaultWidth: asset?.defaultWidth ?? 100 };
-    });
-    return computePlanBounds(stampData, perspective, DEFAULT_PLAN_SCALE);
-  }, [stamps, perspective]);
+  // Load plan image
+  useEffect(() => {
+    if (!planView.image) { setPlanImage(null); return; }
+    const img = new window.Image();
+    img.src = planView.image;
+    img.onload = () => setPlanImage(img);
+  }, [planView.image]);
 
-  // Fit plan view to show all stamps
-  const planTransform = useMemo(() => {
-    const rangeX = bounds.maxX - bounds.minX;
-    const rangeY = bounds.maxY - bounds.minY;
-    if (rangeX <= 0 || rangeY <= 0) return { scale: 1, x: canvasWidth / 2, y: canvasHeight / 2 };
-
-    const scaleX = canvasWidth / rangeX;
-    const scaleY = canvasHeight / rangeY;
-    const scale = Math.min(scaleX, scaleY) * 0.9;
-
-    const centerX = (bounds.minX + bounds.maxX) / 2;
-    const centerY = (bounds.minY + bounds.maxY) / 2;
-
-    return {
-      scale,
-      x: canvasWidth / 2 - centerX * scale,
-      y: canvasHeight / 2 - centerY * scale,
-    };
-  }, [bounds, canvasWidth, canvasHeight]);
-
-  // Fit canvas to container
+  // Fit to container
   useEffect(() => {
     const updateSize = () => {
       if (!containerRef.current) return;
       const { clientWidth, clientHeight } = containerRef.current;
       setCanvasSize(clientWidth, clientHeight);
+
+      if (planView.imageWidth && planView.imageHeight) {
+        const scaleX = clientWidth / planView.imageWidth;
+        const scaleY = clientHeight / planView.imageHeight;
+        const s = Math.min(scaleX, scaleY, 1);
+        setStageScale(s);
+        setStagePos({
+          x: (clientWidth - planView.imageWidth * s) / 2,
+          y: (clientHeight - planView.imageHeight * s) / 2,
+        });
+      }
     };
     updateSize();
     const observer = new ResizeObserver(updateSize);
     if (containerRef.current) observer.observe(containerRef.current);
     return () => observer.disconnect();
-  }, [setCanvasSize]);
+  }, [planView.imageWidth, planView.imageHeight, setCanvasSize]);
 
-  // Handle tap to place stamp or deselect
+  // Map photo stamps to plan coordinates via homography
+  const mappedStamps = stamps.map((stamp) => {
+    if (!planView.homography) return null;
+    const planPos = applyHomography(planView.homography, stamp.x, stamp.y);
+    const isCustom = stamp.assetId.startsWith('custom-');
+    const asset = isCustom ? null : getAssetById(stamp.assetId);
+    const customStamp = isCustom ? useCustomStampStore.getState().getStamp(stamp.assetId) : null;
+    const name = asset?.name ?? customStamp?.name ?? '?';
+    const color = asset?.colors[0] ?? '#4a90d9';
+    const radius = Math.max(8, (asset?.defaultWidth ?? 50) * stamp.manualScale * 0.4);
+    return { stamp, planX: planPos.x, planY: planPos.y, name, color, radius };
+  }).filter(Boolean) as { stamp: typeof stamps[0]; planX: number; planY: number; name: string; color: string; radius: number }[];
+
+  // Handle tap — point matching, place stamp, or deselect
   const handleStageClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
-      const pending = useProjectStore.getState().pendingStampAssetId;
+      const stage = stageRef.current;
+      if (!stage) return;
+      const pos = stage.getPointerPosition();
+      if (!pos) return;
+      const planX = (pos.x - stagePos.x) / stageScale;
+      const planY = (pos.y - stagePos.y) / stageScale;
 
-      if (pending) {
-        const stage = stageRef.current;
-        if (!stage) return;
-        const pos = stage.getPointerPosition();
-        if (!pos) return;
-        // Convert screen → plan → photo
-        const planX = (pos.x - planTransform.x) / planTransform.scale;
-        const planY = (pos.y - planTransform.y) / planTransform.scale;
-        const { photoX, photoY } = planToPhoto(planX, planY, perspective, DEFAULT_PLAN_SCALE);
-        addStamp(pending, photoX, photoY);
+      // Point matching takes priority
+      if (PointMatcher.activeStep === 'plan') {
+        PointMatcher.onCanvasTap(planX, planY);
+        return;
+      }
+
+      const pending = useProjectStore.getState().pendingStampAssetId;
+      const pv = useProjectStore.getState().planView;
+
+      if (pending && pv.inverseHomography) {
+        const photoPos = applyHomography(pv.inverseHomography, planX, planY);
+        addStamp(pending, photoPos.x, photoPos.y);
         return;
       }
 
@@ -99,94 +101,128 @@ export function PlanViewCanvas() {
         selectStamp(null);
       }
     },
-    [planTransform, perspective, addStamp, selectStamp]
+    [stagePos, stageScale, addStamp, selectStamp]
   );
 
-  // Sort by planY for correct depth rendering (further = behind)
-  const sortedPlanStamps = [...planStamps].sort((a, b) => a.planY - b.planY);
+  // Handle circle drag in plan view → convert back to photo coords
+  const handleCircleDrag = useCallback(
+    (stampId: string, newPlanX: number, newPlanY: number) => {
+      const pv = useProjectStore.getState().planView;
+      if (!pv.inverseHomography) return;
+      const photoPos = applyHomography(pv.inverseHomography, newPlanX, newPlanY);
+      updateStamp(stampId, { x: photoPos.x, y: photoPos.y });
+    },
+    [updateStamp]
+  );
+
+  const hasHomography = !!planView.homography;
+  const pointCount = planView.matchedPoints.length;
 
   return (
-    <div ref={containerRef} className="flex-1 bg-white relative overflow-hidden">
-      {/* View label */}
-      <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-3 py-1 rounded-full text-xs font-medium z-10 pointer-events-none">
-        Plan View — Bird's Eye
+    <div ref={containerRef} className="flex-1 bg-gray-50 relative overflow-hidden">
+      {/* Status badges */}
+      <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex gap-2 pointer-events-none">
+        <div className="bg-emerald-500 text-white px-3 py-1 rounded-full text-xs font-medium">
+          Plan View
+        </div>
+        {!planView.image && (
+          <div className="bg-amber-500 text-white px-3 py-1 rounded-full text-xs font-medium">
+            Upload a plan image in toolbar
+          </div>
+        )}
+        {planView.image && pointCount < 2 && (
+          <div className="bg-amber-500 text-white px-3 py-1 rounded-full text-xs font-medium">
+            Match {2 - pointCount} more point{2 - pointCount > 1 ? 's' : ''} to link views
+          </div>
+        )}
       </div>
 
-      {/* Pending stamp hint */}
-      {pendingStampAssetId && (
+      {pendingStampAssetId && hasHomography && (
         <div className="absolute top-10 left-1/2 -translate-x-1/2 bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-medium z-10 pointer-events-none">
           Tap to place plant
         </div>
       )}
 
-      {/* Scale info */}
-      {!scaleReference && stamps.length > 0 && (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-medium z-10 pointer-events-none">
-          Grid shows relative spacing — set scale in toolbar for feet
+      {!planView.image ? (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-center text-gray-400">
+            <p className="text-lg font-medium">No plan image yet</p>
+            <p className="text-sm mt-1">Upload a site plan, aerial photo, or drawing in the toolbar</p>
+          </div>
         </div>
+      ) : (
+        <Stage
+          ref={stageRef}
+          width={canvasWidth || 1}
+          height={canvasHeight || 1}
+          scaleX={stageScale}
+          scaleY={stageScale}
+          x={stagePos.x}
+          y={stagePos.y}
+          draggable={false}
+          onClick={handleStageClick}
+          onTap={handleStageClick}
+        >
+          {/* Plan image background */}
+          <Layer listening={false}>
+            {planImage && (
+              <KonvaImage
+                image={planImage}
+                x={0}
+                y={0}
+                width={planView.imageWidth}
+                height={planView.imageHeight}
+              />
+            )}
+          </Layer>
+
+          {/* Matched point indicators */}
+          <Layer listening={false}>
+            {planView.matchedPoints.map((pt, i) => (
+              <Group key={pt.id}>
+                <Circle x={pt.planX} y={pt.planY} radius={8} fill="#f43f5e" stroke="#fff" strokeWidth={2} />
+                <Text x={pt.planX + 10} y={pt.planY - 6} text={`${i + 1}`} fontSize={12} fill="#f43f5e" fontStyle="bold" />
+              </Group>
+            ))}
+          </Layer>
+
+          {/* Stamp circles (only shown when homography is available) */}
+          <Layer>
+            {mappedStamps.map(({ stamp, planX, planY, name, color, radius }) => (
+              <Group
+                key={stamp.id}
+                x={planX}
+                y={planY}
+                draggable={hasHomography}
+                onClick={() => selectStamp(stamp.id)}
+                onTap={() => selectStamp(stamp.id)}
+                onDragStart={() => pushHistory()}
+                onDragEnd={(e) => handleCircleDrag(stamp.id, e.target.x(), e.target.y())}
+              >
+                <Circle
+                  radius={radius}
+                  fill={color}
+                  opacity={stamp.id === selectedStampId ? 0.6 : 0.35}
+                  stroke={stamp.id === selectedStampId ? '#2196f3' : color}
+                  strokeWidth={stamp.id === selectedStampId ? 3 : 1.5}
+                />
+                <Text
+                  text={name}
+                  fontSize={Math.min(11, radius * 0.6)}
+                  fill="#333"
+                  align="center"
+                  verticalAlign="middle"
+                  width={radius * 2}
+                  height={radius * 2}
+                  offsetX={radius}
+                  offsetY={radius}
+                  listening={false}
+                />
+              </Group>
+            ))}
+          </Layer>
+        </Stage>
       )}
-
-      <Stage
-        ref={stageRef}
-        width={canvasWidth || 1}
-        height={canvasHeight || 1}
-        scaleX={planTransform.scale}
-        scaleY={planTransform.scale}
-        x={planTransform.x}
-        y={planTransform.y}
-        draggable={false}
-        onClick={handleStageClick}
-        onTap={handleStageClick}
-      >
-        {/* Background + Grid */}
-        <Layer listening={false}>
-          <Rect
-            x={bounds.minX}
-            y={bounds.minY}
-            width={bounds.maxX - bounds.minX}
-            height={bounds.maxY - bounds.minY}
-            fill="#fafafa"
-          />
-          <PlanGrid bounds={bounds} scaleReference={scaleReference} />
-
-          {/* Direction labels */}
-          <Text
-            x={-30}
-            y={bounds.minY + 5}
-            text="← FARTHER"
-            fontSize={11}
-            fill="#aaa"
-            fontStyle="bold"
-            rotation={90}
-            listening={false}
-          />
-          <Text
-            x={-30}
-            y={bounds.maxY - 60}
-            text="← CLOSER"
-            fontSize={11}
-            fill="#aaa"
-            fontStyle="bold"
-            rotation={90}
-            listening={false}
-          />
-        </Layer>
-
-        {/* Stamp circles */}
-        <Layer>
-          {sortedPlanStamps.map(({ stamp, planX, planY, radius }) => (
-            <PlanStampCircle
-              key={stamp.id}
-              stamp={stamp}
-              planX={planX}
-              planY={planY}
-              radius={radius}
-              isSelected={stamp.id === selectedStampId}
-              planScale={DEFAULT_PLAN_SCALE}
-            />
-          ))}
-        </Layer>
-      </Stage>
     </div>
   );
 }

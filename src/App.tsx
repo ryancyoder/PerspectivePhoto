@@ -4,9 +4,9 @@ import { Toolbar } from './components/Toolbar/Toolbar';
 import { StampLibrary } from './components/StampLibrary/StampLibrary';
 import { EditorCanvas } from './components/Canvas/EditorCanvas';
 import { PlanViewCanvas } from './components/PlanView/PlanViewCanvas';
-import { ScaleSetup } from './components/PlanView/ScaleSetup';
 import { SizeSlider } from './components/GestureControls/SizeSlider';
 import { MovementJoystick } from './components/GestureControls/MovementJoystick';
+import { PointMatcher } from './components/PlanView/PointMatcher';
 import { useProjectStore } from './store/useProjectStore';
 
 export default function App() {
@@ -25,7 +25,7 @@ export default function App() {
         )}
         <SizeSlider />
         <MovementJoystick />
-        <ScaleSetup />
+        <PointMatcher />
       </div>
     </div>
   );
