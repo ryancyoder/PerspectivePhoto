@@ -1,4 +1,4 @@
-export type StampCategory = 'trees' | 'shrubs' | 'flowers' | 'hardscape';
+export type StampCategory = 'trees' | 'shrubs' | 'flowers' | 'hardscape' | 'custom';
 
 export type ToolMode = 'select' | 'horizon' | 'calibrate' | 'pan';
 
@@ -25,6 +25,16 @@ export interface StampAsset {
   colors: string[];
   defaultWidth: number;
   defaultHeight: number;
+}
+
+/** User-uploaded custom stamp (PNG image stored as data URL) */
+export interface CustomStamp {
+  id: string;
+  name: string;
+  dataUrl: string;       // base64 PNG data URL
+  naturalWidth: number;
+  naturalHeight: number;
+  createdAt: number;
 }
 
 export interface PlacedStamp {

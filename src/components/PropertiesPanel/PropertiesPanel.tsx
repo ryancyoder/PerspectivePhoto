@@ -1,5 +1,6 @@
 import { X, FlipHorizontal, Copy, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import { useProjectStore } from '../../store/useProjectStore';
+import { useCustomStampStore } from '../../store/useCustomStampStore';
 import { getAssetById } from '../../engine/stampAssets';
 
 export function PropertiesPanel() {
@@ -17,8 +18,11 @@ export function PropertiesPanel() {
   const stamp = stamps.find((s) => s.id === selectedStampId);
   if (!stamp) return null;
 
-  const asset = getAssetById(stamp.assetId);
-  if (!asset) return null;
+  const isCustom = stamp.assetId.startsWith('custom-');
+  const asset = isCustom ? null : getAssetById(stamp.assetId);
+  const customStamp = isCustom ? useCustomStampStore.getState().getStamp(stamp.assetId) : null;
+  const stampName = asset?.name ?? customStamp?.name ?? 'Unknown';
+  if (!asset && !customStamp) return null;
 
   const handleChange = (field: string, value: number | boolean) => {
     pushHistory();
@@ -44,7 +48,7 @@ export function PropertiesPanel() {
       <div className="max-w-2xl mx-auto px-4 py-3">
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-medium text-gray-700">{asset.name}</span>
+          <span className="text-sm font-medium text-gray-700">{stampName}</span>
           <button
             onClick={() => selectStamp(null)}
             className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-400"

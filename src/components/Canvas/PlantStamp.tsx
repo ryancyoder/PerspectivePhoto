@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Image as KonvaImage, Transformer } from 'react-konva';
 import Konva from 'konva';
 import { useProjectStore } from '../../store/useProjectStore';
+import { useCustomStampStore } from '../../store/useCustomStampStore';
 import { calculateScale } from '../../engine/perspective';
 import { getAssetById, renderStampToCanvas } from '../../engine/stampAssets';
 import type { PlacedStamp } from '../../types';
@@ -14,7 +15,8 @@ interface PlantStampProps {
 export function PlantStamp({ stamp, isSelected }: PlantStampProps) {
   const imageRef = useRef<Konva.Image>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
-  const [canvasImage, setCanvasImage] = useState<HTMLCanvasElement | null>(null);
+  const [imageSource, setImageSource] = useState<HTMLCanvasElement | HTMLImageElement | null>(null);
+  const [assetSize, setAssetSize] = useState({ width: 100, height: 100 });
 
   const perspective = useProjectStore((s) => s.perspective);
   const updateStamp = useProjectStore((s) => s.updateStamp);
@@ -22,14 +24,29 @@ export function PlantStamp({ stamp, isSelected }: PlantStampProps) {
   const pushHistory = useProjectStore((s) => s.pushHistory);
   const toolMode = useProjectStore((s) => s.toolMode);
 
-  const asset = getAssetById(stamp.assetId);
+  const isCustom = stamp.assetId.startsWith('custom-');
+  const builtinAsset = isCustom ? null : getAssetById(stamp.assetId);
+  const customStamp = isCustom ? useCustomStampStore.getState().getStamp(stamp.assetId) : null;
 
-  // Render the SVG stamp to a canvas element
+  // Render the stamp image (SVG canvas for built-in, HTMLImage for custom)
   useEffect(() => {
-    if (!asset) return;
-    const canvas = renderStampToCanvas(asset, asset.defaultWidth * 2, asset.defaultHeight * 2);
-    setCanvasImage(canvas);
-  }, [asset]);
+    if (builtinAsset) {
+      const canvas = renderStampToCanvas(builtinAsset, builtinAsset.defaultWidth * 2, builtinAsset.defaultHeight * 2);
+      setImageSource(canvas);
+      setAssetSize({ width: builtinAsset.defaultWidth, height: builtinAsset.defaultHeight });
+    } else if (customStamp) {
+      const img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        setImageSource(img);
+        // Normalize custom stamps to ~100px base height for consistent perspective scaling
+        const aspect = img.naturalWidth / img.naturalHeight;
+        const baseHeight = 100;
+        setAssetSize({ width: baseHeight * aspect, height: baseHeight });
+      };
+      img.src = customStamp.dataUrl;
+    }
+  }, [builtinAsset, customStamp]);
 
   // Attach transformer when selected
   useEffect(() => {
@@ -39,20 +56,20 @@ export function PlantStamp({ stamp, isSelected }: PlantStampProps) {
     }
   }, [isSelected]);
 
-  if (!asset || !canvasImage) return null;
+  if (!imageSource) return null;
 
   // Calculate perspective-based scale
   const perspectiveScale = calculateScale(stamp.y, perspective);
   const totalScale = perspectiveScale * stamp.manualScale;
 
-  const width = asset.defaultWidth * totalScale;
-  const height = asset.defaultHeight * totalScale;
+  const width = assetSize.width * totalScale;
+  const height = assetSize.height * totalScale;
 
   return (
     <>
       <KonvaImage
         ref={imageRef}
-        image={canvasImage}
+        image={imageSource}
         x={stamp.x}
         y={stamp.y}
         width={width}
@@ -75,10 +92,8 @@ export function PlantStamp({ stamp, isSelected }: PlantStampProps) {
         onTransformEnd={() => {
           const node = imageRef.current;
           if (!node) return;
-          // Extract the scale change from the transform
           const scaleX = Math.abs(node.scaleX());
           const newManualScale = stamp.manualScale * scaleX;
-          // Reset node scale and apply to manualScale
           node.scaleX(stamp.flipX ? -1 : 1);
           node.scaleY(1);
           updateStamp(stamp.id, {
@@ -93,7 +108,6 @@ export function PlantStamp({ stamp, isSelected }: PlantStampProps) {
         <Transformer
           ref={transformerRef}
           boundBoxFunc={(_oldBox, newBox) => {
-            // Minimum size constraint
             if (newBox.width < 20 || newBox.height < 20) return _oldBox;
             return newBox;
           }}

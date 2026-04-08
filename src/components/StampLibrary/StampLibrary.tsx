@@ -1,23 +1,29 @@
 import { useState } from 'react';
-import { Trees, Flower2, Shrub, Fence, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Trees, Flower2, Shrub, Fence, FolderUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useProjectStore } from '../../store/useProjectStore';
 import { STAMP_ASSETS } from '../../engine/stampAssets';
 import { StampCard } from './StampCard';
+import { CustomStampUpload } from './CustomStampUpload';
 import type { StampCategory } from '../../types';
 
-const CATEGORIES: { id: StampCategory; label: string; icon: typeof Trees }[] = [
+type TabId = StampCategory | 'custom';
+
+const CATEGORIES: { id: TabId; label: string; icon: typeof Trees }[] = [
   { id: 'trees', label: 'Trees', icon: Trees },
   { id: 'shrubs', label: 'Shrubs', icon: Shrub },
   { id: 'flowers', label: 'Flowers', icon: Flower2 },
   { id: 'hardscape', label: 'Hardscape', icon: Fence },
+  { id: 'custom', label: 'My Library', icon: FolderUp },
 ];
 
 export function StampLibrary() {
-  const [activeCategory, setActiveCategory] = useState<StampCategory>('trees');
+  const [activeTab, setActiveTab] = useState<TabId>('trees');
   const sidebarCollapsed = useProjectStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useProjectStore((s) => s.toggleSidebar);
 
-  const filteredAssets = STAMP_ASSETS.filter((a) => a.category === activeCategory);
+  const filteredAssets = activeTab !== 'custom'
+    ? STAMP_ASSETS.filter((a) => a.category === activeTab)
+    : [];
 
   if (sidebarCollapsed) {
     return (
@@ -33,11 +39,11 @@ export function StampLibrary() {
           <button
             key={id}
             onClick={() => {
-              setActiveCategory(id);
+              setActiveTab(id);
               toggleSidebar();
             }}
             className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${
-              activeCategory === id ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:bg-gray-100'
+              activeTab === id ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:bg-gray-100'
             }`}
             title={id}
           >
@@ -53,7 +59,7 @@ export function StampLibrary() {
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
         <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-          Plants
+          {activeTab === 'custom' ? 'My Library' : 'Plants'}
         </span>
         <button
           onClick={toggleSidebar}
@@ -69,9 +75,9 @@ export function StampLibrary() {
         {CATEGORIES.map(({ id, icon: Icon, label }) => (
           <button
             key={id}
-            onClick={() => setActiveCategory(id)}
+            onClick={() => setActiveTab(id)}
             className={`flex-1 py-2 flex flex-col items-center gap-0.5 transition-colors ${
-              activeCategory === id
+              activeTab === id
                 ? 'text-blue-600 border-b-2 border-blue-600'
                 : 'text-gray-400 hover:text-gray-600'
             }`}
@@ -83,17 +89,21 @@ export function StampLibrary() {
         ))}
       </div>
 
-      {/* Stamp grid */}
-      <div className="flex-1 overflow-y-auto p-2">
-        <div className="grid grid-cols-2 gap-1">
-          {filteredAssets.map((asset) => (
-            <StampCard key={asset.id} asset={asset} />
-          ))}
+      {/* Content */}
+      {activeTab === 'custom' ? (
+        <CustomStampUpload />
+      ) : (
+        <div className="flex-1 overflow-y-auto p-2">
+          <div className="grid grid-cols-2 gap-1">
+            {filteredAssets.map((asset) => (
+              <StampCard key={asset.id} asset={asset} />
+            ))}
+          </div>
+          <p className="text-[10px] text-gray-300 text-center mt-3">
+            Tap to select, then tap photo to place
+          </p>
         </div>
-        <p className="text-[10px] text-gray-300 text-center mt-3">
-          Tap to select, then tap photo to place
-        </p>
-      </div>
+      )}
     </div>
   );
 }
