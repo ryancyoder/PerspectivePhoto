@@ -113,31 +113,25 @@ export function Toolbar({ stageRef }: ToolbarProps) {
 
   return (
     <div className="h-14 bg-white border-b border-gray-200 flex items-center px-2 gap-1 shrink-0">
+      {/* Hidden file inputs — placed here, far from each other's labels */}
+      <input id="photo-upload-input" type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+      <input id="plan-upload-input" type="file" accept="image/*" className="hidden" onChange={handlePlanFileChange} />
+
       {/* Upload perspective photo */}
       <label
+        htmlFor="photo-upload-input"
         className="w-11 h-11 flex items-center justify-center rounded-lg transition-colors text-gray-600 hover:bg-gray-100 cursor-pointer"
         title="Upload Photo"
       >
         <Upload size={20} />
-        <input
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleFileChange}
-        />
       </label>
       {/* Upload plan image */}
       <label
+        htmlFor="plan-upload-input"
         className="w-11 h-11 flex items-center justify-center rounded-lg transition-colors text-gray-600 hover:bg-gray-100 cursor-pointer"
         title="Upload Plan Image"
       >
         <LayoutGrid size={20} />
-        <input
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handlePlanFileChange}
-        />
       </label>
 
       <div className="w-px h-8 bg-gray-200 mx-1" />
