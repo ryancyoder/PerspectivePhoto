@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuid } from 'uuid';
-import type { PlacedStamp, PerspectiveConfig, ToolMode, HistoryEntry } from '../types';
+import type { PlacedStamp, PerspectiveConfig, ToolMode, HistoryEntry, ViewMode, ScaleReference } from '../types';
 import { createDefaultPerspective } from '../engine/perspective';
 
 interface ProjectState {
@@ -27,6 +27,10 @@ interface ProjectState {
   // Tool
   toolMode: ToolMode;
 
+  // View
+  viewMode: ViewMode;
+  scaleReference: ScaleReference | null;
+
   // Sidebar
   sidebarCollapsed: boolean;
 
@@ -52,6 +56,8 @@ interface ProjectState {
   setPendingStamp: (assetId: string | null) => void;
 
   setToolMode: (mode: ToolMode) => void;
+  setViewMode: (mode: ViewMode) => void;
+  setScaleReference: (ref: ScaleReference | null) => void;
   toggleSidebar: () => void;
   setPropertiesTrayOpen: (open: boolean) => void;
 
@@ -79,6 +85,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   selectedStampId: null,
   pendingStampAssetId: null,
   toolMode: 'select',
+  viewMode: 'photo',
+  scaleReference: null,
   sidebarCollapsed: false,
   propertiesTrayOpen: false,
 
@@ -174,6 +182,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   setPendingStamp: (assetId) => set({ pendingStampAssetId: assetId, selectedStampId: null }),
 
   setToolMode: (mode) => set({ toolMode: mode, selectedStampId: null, pendingStampAssetId: null }),
+  setViewMode: (mode) => set({ viewMode: mode }),
+  setScaleReference: (ref) => set({ scaleReference: ref }),
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
   setPropertiesTrayOpen: (open) => set({ propertiesTrayOpen: open }),
 

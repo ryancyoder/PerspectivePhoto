@@ -65,3 +65,12 @@ export interface HistoryEntry {
   stamps: PlacedStamp[];
   perspective: PerspectiveConfig;
 }
+
+export type ViewMode = 'photo' | 'plan';
+
+export interface ScaleReference {
+  point1: { x: number; y: number };
+  point2: { x: number; y: number };
+  distanceFt: number;
+  feetPerPlanUnit: number;
+}

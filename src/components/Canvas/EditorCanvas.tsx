@@ -6,6 +6,7 @@ import { BackgroundImage } from './BackgroundImage';
 import { PerspectiveGuides } from './PerspectiveGuides';
 import { PlantStamp } from './PlantStamp';
 import { CalibrationOverlay } from './CalibrationOverlay';
+import { ScaleSetup } from '../PlanView/ScaleSetup';
 
 interface EditorCanvasProps {
   stageRef: React.RefObject<Konva.Stage | null>;
@@ -58,20 +59,31 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
     (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
       const pending = useProjectStore.getState().pendingStampAssetId;
 
-      if (pending && backgroundImage) {
-        const stage = stageRef.current;
-        if (!stage) return;
+      // Convert pointer to canvas coords
+      const stage = stageRef.current;
+      if (stage) {
         const pos = stage.getPointerPosition();
-        if (!pos) return;
-        const currentScale = useProjectStore.getState().stageScale;
-        const currentX = useProjectStore.getState().stageX;
-        const currentY = useProjectStore.getState().stageY;
-        const canvasPos = {
-          x: (pos.x - currentX) / currentScale,
-          y: (pos.y - currentY) / currentScale,
-        };
-        addStamp(pending, canvasPos.x, canvasPos.y);
-        return;
+        if (pos) {
+          const currentScale = useProjectStore.getState().stageScale;
+          const currentX = useProjectStore.getState().stageX;
+          const currentY = useProjectStore.getState().stageY;
+          const canvasPos = {
+            x: (pos.x - currentX) / currentScale,
+            y: (pos.y - currentY) / currentScale,
+          };
+
+          // Scale setup point picking takes priority
+          if (ScaleSetup.activeStep === 'point1' || ScaleSetup.activeStep === 'point2') {
+            ScaleSetup.onCanvasTap(canvasPos.x, canvasPos.y);
+            return;
+          }
+
+          // Place pending stamp
+          if (pending && backgroundImage) {
+            addStamp(pending, canvasPos.x, canvasPos.y);
+            return;
+          }
+        }
       }
 
       // Clicked on empty stage area — deselect

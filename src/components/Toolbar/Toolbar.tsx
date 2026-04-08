@@ -8,6 +8,8 @@ import {
   Download,
   Trash2,
   PersonStanding,
+  Image as ImageIcon,
+  LayoutGrid,
 } from 'lucide-react';
 import Konva from 'konva';
 import { useProjectStore } from '../../store/useProjectStore';
@@ -22,6 +24,8 @@ export function Toolbar({ stageRef }: ToolbarProps) {
 
   const toolMode = useProjectStore((s) => s.toolMode);
   const setToolMode = useProjectStore((s) => s.setToolMode);
+  const viewMode = useProjectStore((s) => s.viewMode);
+  const setViewMode = useProjectStore((s) => s.setViewMode);
   const setBackgroundImage = useProjectStore((s) => s.setBackgroundImage);
   const selectedStampId = useProjectStore((s) => s.selectedStampId);
   const removeStamp = useProjectStore((s) => s.removeStamp);
@@ -118,6 +122,30 @@ export function Toolbar({ stageRef }: ToolbarProps) {
           <Icon size={20} />
         </ToolButton>
       ))}
+
+      <div className="w-px h-8 bg-gray-200 mx-1" />
+
+      {/* Photo / Plan toggle */}
+      <div className="flex bg-gray-100 rounded-lg p-0.5">
+        <button
+          onClick={() => setViewMode('photo')}
+          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+            viewMode === 'photo' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'
+          }`}
+        >
+          <ImageIcon size={14} />
+          Photo
+        </button>
+        <button
+          onClick={() => setViewMode('plan')}
+          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+            viewMode === 'plan' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500'
+          }`}
+        >
+          <LayoutGrid size={14} />
+          Plan
+        </button>
+      </div>
 
       <div className="w-px h-8 bg-gray-200 mx-1" />
 
