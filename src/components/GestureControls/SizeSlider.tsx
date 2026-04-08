@@ -1,6 +1,21 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
 import { useProjectStore } from '../../store/useProjectStore';
 
+const TRACK_HEIGHT = 200;
+const THUMB_SIZE = 44;
+const MIN_SCALE = 0.1;
+const MAX_SCALE = 5.0;
+
+function scaleToPosition(scale: number) {
+  const t = (scale - MIN_SCALE) / (MAX_SCALE - MIN_SCALE);
+  return 1 - t;
+}
+
+function positionToScale(pos: number) {
+  const t = 1 - pos;
+  return MIN_SCALE + t * (MAX_SCALE - MIN_SCALE);
+}
+
 /**
  * Vertical thumb slider for resizing the selected plant.
  * Floats in the top-left of the canvas area.
@@ -16,25 +31,7 @@ export function SizeSlider() {
   const [isDragging, setIsDragging] = useState(false);
   const hasRecordedHistory = useRef(false);
 
-  const stamp = stamps.find((s) => s.id === selectedStampId);
-  if (!stamp) return null;
-
-  const TRACK_HEIGHT = 200;
-  const THUMB_SIZE = 44;
-
-  // Map manualScale (0.1 - 5.0) to thumb position (0 = top/big, 1 = bottom/small)
-  const scaleToPosition = (scale: number) => {
-    const t = (scale - 0.1) / (5.0 - 0.1);
-    return 1 - t; // invert: top = big
-  };
-
-  const positionToScale = (pos: number) => {
-    const t = 1 - pos; // invert back
-    return 0.1 + t * (5.0 - 0.1);
-  };
-
-  const thumbPos = scaleToPosition(stamp.manualScale);
-  const thumbY = thumbPos * (TRACK_HEIGHT - THUMB_SIZE);
+  const stamp = selectedStampId ? stamps.find((s) => s.id === selectedStampId) : null;
 
   const handleMove = useCallback(
     (clientY: number) => {
@@ -104,6 +101,11 @@ export function SizeSlider() {
     };
   }, [isDragging, handleMove]);
 
+  // Render nothing if no stamp selected — but hooks are all called above
+  if (!stamp) return null;
+
+  const thumbPos = scaleToPosition(stamp.manualScale);
+  const thumbY = thumbPos * (TRACK_HEIGHT - THUMB_SIZE);
   const scalePercent = Math.round(stamp.manualScale * 100);
 
   return (
@@ -111,14 +113,12 @@ export function SizeSlider() {
       className="absolute left-3 top-16 z-20 flex flex-col items-center select-none"
       style={{ WebkitTouchCallout: 'none' }}
     >
-      {/* Scale label */}
       <div className={`text-[11px] font-semibold mb-2 px-2 py-0.5 rounded-full ${
         isDragging ? 'bg-blue-500 text-white' : 'bg-black/40 text-white'
       }`}>
         {scalePercent}%
       </div>
 
-      {/* Track */}
       <div
         ref={trackRef}
         className="relative w-10 rounded-full bg-black/20 backdrop-blur-sm border border-white/20"
@@ -126,28 +126,20 @@ export function SizeSlider() {
         onMouseDown={handleMouseDown}
         onTouchStart={handleTouchStart}
       >
-        {/* Size indicator labels */}
         <div className="absolute -right-5 top-0 text-[9px] text-white/60 font-medium">+</div>
-        <div className="absolute -right-4 bottom-0 text-[9px] text-white/60 font-medium">−</div>
+        <div className="absolute -right-4 bottom-0 text-[9px] text-white/60 font-medium">-</div>
 
-        {/* Track fill */}
         <div
           className="absolute bottom-0 left-0 right-0 rounded-full bg-blue-400/40"
           style={{ height: `${(1 - thumbPos) * 100}%` }}
         />
 
-        {/* Thumb */}
         <div
           className={`absolute left-1/2 -translate-x-1/2 rounded-full border-2 shadow-lg transition-colors ${
             isDragging ? 'bg-blue-500 border-white scale-110' : 'bg-white border-blue-400'
           }`}
-          style={{
-            width: THUMB_SIZE,
-            height: THUMB_SIZE,
-            top: thumbY,
-          }}
+          style={{ width: THUMB_SIZE, height: THUMB_SIZE, top: thumbY }}
         >
-          {/* Grip lines */}
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
             <div className={`w-4 h-0.5 rounded ${isDragging ? 'bg-white/60' : 'bg-gray-300'}`} />
             <div className={`w-4 h-0.5 rounded ${isDragging ? 'bg-white/60' : 'bg-gray-300'}`} />

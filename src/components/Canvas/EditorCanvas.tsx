@@ -143,7 +143,7 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
   return (
     <div
       ref={containerRef}
-      className={`absolute inset-0 bg-gray-100 overflow-hidden ${cursorClass}`}
+      className={`flex-1 bg-gray-100 relative overflow-hidden ${cursorClass}`}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
     >
@@ -165,8 +165,8 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
 
       <Stage
         ref={stageRef}
-        width={canvasWidth}
-        height={canvasHeight}
+        width={canvasWidth || 1}
+        height={canvasHeight || 1}
         scaleX={stageScale}
         scaleY={stageScale}
         x={stageX}

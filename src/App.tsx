@@ -15,11 +15,9 @@ export default function App() {
       <Toolbar stageRef={stageRef} />
       <div className="flex flex-1 min-h-0 relative">
         <StampLibrary />
-        <div className="flex-1 relative">
-          <EditorCanvas stageRef={stageRef} />
-          <SizeSlider />
-          <MovementJoystick />
-        </div>
+        <EditorCanvas stageRef={stageRef} />
+        <SizeSlider />
+        <MovementJoystick />
         <PropertiesPanel />
       </div>
     </div>

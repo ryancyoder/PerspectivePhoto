@@ -65,6 +65,9 @@ export function PlantStamp({ stamp, isSelected }: PlantStampProps) {
   const width = assetSize.width * totalScale;
   const height = assetSize.height * totalScale;
 
+  // Guard against invalid dimensions that would crash Konva
+  if (!isFinite(width) || !isFinite(height) || width <= 0 || height <= 0) return null;
+
   return (
     <>
       <KonvaImage
