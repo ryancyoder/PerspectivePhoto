@@ -143,7 +143,7 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
   return (
     <div
       ref={containerRef}
-      className={`flex-1 bg-gray-100 relative overflow-hidden ${cursorClass}`}
+      className={`absolute inset-0 bg-gray-100 overflow-hidden ${cursorClass}`}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
     >
