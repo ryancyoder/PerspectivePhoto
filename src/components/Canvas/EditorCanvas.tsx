@@ -134,8 +134,10 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
     e.dataTransfer.dropEffect = 'copy';
   }, []);
 
-  // Sort stamps by zIndex for rendering order
-  const sortedStamps = [...stamps].sort((a, b) => a.zIndex - b.zIndex);
+  // Sort stamps by Y position for natural depth ordering:
+  // stamps closer to horizon (smaller Y) render behind,
+  // stamps closer to foreground (larger Y) render in front
+  const sortedStamps = [...stamps].sort((a, b) => a.y - b.y);
 
   // Show placement cursor when there's a pending stamp
   const cursorClass = pendingStampAssetId ? 'cursor-crosshair' : '';
