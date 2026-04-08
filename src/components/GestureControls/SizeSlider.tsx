@@ -26,6 +26,7 @@ export function SizeSlider() {
   const stamps = useProjectStore((s) => s.stamps);
   const updateStamp = useProjectStore((s) => s.updateStamp);
   const pushHistory = useProjectStore((s) => s.pushHistory);
+  const duplicateStamp = useProjectStore((s) => s.duplicateStamp);
 
   const trackRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -147,6 +148,19 @@ export function SizeSlider() {
           </div>
         </div>
       </div>
+
+      {/* Duplicate button */}
+      <button
+        onClick={() => { if (selectedStampId) duplicateStamp(selectedStampId); }}
+        className="mt-3 w-11 h-11 rounded-full bg-black/30 backdrop-blur-sm border border-white/20 flex items-center justify-center active:bg-blue-500 transition-colors"
+        style={{ WebkitTouchCallout: 'none' }}
+        title="Duplicate"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+      </button>
     </div>
   );
 }
