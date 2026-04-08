@@ -21,7 +21,6 @@ interface ToolbarProps {
 
 export function Toolbar({ stageRef }: ToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const planInputRef = useRef<HTMLInputElement>(null);
 
   const toolMode = useProjectStore((s) => s.toolMode);
   const setToolMode = useProjectStore((s) => s.setToolMode);
@@ -61,10 +60,6 @@ export function Toolbar({ stageRef }: ToolbarProps) {
     },
     [setBackgroundImage]
   );
-
-  const handlePlanUpload = useCallback(() => {
-    planInputRef.current?.click();
-  }, []);
 
   const handlePlanFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -127,22 +122,24 @@ export function Toolbar({ stageRef }: ToolbarProps) {
       <ToolButton onClick={handleUpload} label="Upload Photo">
         <Upload size={20} />
       </ToolButton>
-      <ToolButton onClick={handlePlanUpload} label="Upload Plan Image">
+      <label
+        className="w-11 h-11 flex items-center justify-center rounded-lg transition-colors text-gray-600 hover:bg-gray-100 cursor-pointer"
+        title="Upload Plan Image"
+      >
         <LayoutGrid size={20} />
-      </ToolButton>
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handlePlanFileChange}
+        />
+      </label>
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*"
         className="hidden"
         onChange={handleFileChange}
-      />
-      <input
-        ref={planInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handlePlanFileChange}
       />
 
       <div className="w-px h-8 bg-gray-200 mx-1" />
