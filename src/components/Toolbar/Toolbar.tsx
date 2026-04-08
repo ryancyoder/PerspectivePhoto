@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useCallback } from 'react';
 import {
   Upload,
   MousePointer2,
@@ -20,7 +20,6 @@ interface ToolbarProps {
 }
 
 export function Toolbar({ stageRef }: ToolbarProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const toolMode = useProjectStore((s) => s.toolMode);
   const setToolMode = useProjectStore((s) => s.setToolMode);
@@ -34,10 +33,6 @@ export function Toolbar({ stageRef }: ToolbarProps) {
   const redo = useProjectStore((s) => s.redo);
   const historyIndex = useProjectStore((s) => s.historyIndex);
   const historyLength = useProjectStore((s) => s.history.length);
-
-  const handleUpload = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
 
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -118,10 +113,20 @@ export function Toolbar({ stageRef }: ToolbarProps) {
 
   return (
     <div className="h-14 bg-white border-b border-gray-200 flex items-center px-2 gap-1 shrink-0">
-      {/* Upload */}
-      <ToolButton onClick={handleUpload} label="Upload Photo">
+      {/* Upload perspective photo */}
+      <label
+        className="w-11 h-11 flex items-center justify-center rounded-lg transition-colors text-gray-600 hover:bg-gray-100 cursor-pointer"
+        title="Upload Photo"
+      >
         <Upload size={20} />
-      </ToolButton>
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+      </label>
+      {/* Upload plan image */}
       <label
         className="w-11 h-11 flex items-center justify-center rounded-lg transition-colors text-gray-600 hover:bg-gray-100 cursor-pointer"
         title="Upload Plan Image"
@@ -134,13 +139,6 @@ export function Toolbar({ stageRef }: ToolbarProps) {
           onChange={handlePlanFileChange}
         />
       </label>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleFileChange}
-      />
 
       <div className="w-px h-8 bg-gray-200 mx-1" />
 
