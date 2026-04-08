@@ -14,4 +14,20 @@ html, body, #root {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Prevent iOS image drag/callout on all images */
+img {
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+  pointer-events: none;
+}
+
+/* Allow text selection only in actual text inputs */
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
 }

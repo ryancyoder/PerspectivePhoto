@@ -23,24 +23,17 @@ export function StampCard({ asset }: StampCardProps) {
     ctx.drawImage(rendered, 0, 0);
   }, [asset]);
 
-  const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.setData('stamp-asset-id', asset.id);
-    e.dataTransfer.effectAllowed = 'copy';
-  };
-
   const handleClick = () => {
-    // Toggle: tap to select for placement, tap again to deselect
     setPendingStamp(isActive ? null : asset.id);
   };
 
   return (
     <div
-      draggable
-      onDragStart={handleDragStart}
       onClick={handleClick}
-      className={`flex flex-col items-center p-2 rounded-lg cursor-pointer transition-colors touch-manipulation ${
+      className={`flex flex-col items-center p-2 rounded-lg cursor-pointer transition-colors select-none ${
         isActive ? 'bg-blue-100 ring-2 ring-blue-400' : 'hover:bg-gray-100'
       }`}
+      style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none' }}
     >
       <canvas
         ref={canvasRef}
@@ -48,7 +41,7 @@ export function StampCard({ asset }: StampCardProps) {
         height={60}
         className="pointer-events-none"
       />
-      <span className={`text-[10px] mt-1 text-center leading-tight ${
+      <span className={`text-[10px] mt-1 text-center leading-tight select-none ${
         isActive ? 'text-blue-600 font-medium' : 'text-gray-500'
       }`}>
         {asset.name}

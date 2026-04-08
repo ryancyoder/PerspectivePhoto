@@ -156,9 +156,10 @@ export function CustomStampUpload() {
               return (
                 <div
                   key={stamp.id}
-                  className={`relative flex flex-col items-center p-2 rounded-lg cursor-pointer transition-colors touch-manipulation group ${
+                  className={`relative flex flex-col items-center p-2 rounded-lg cursor-pointer transition-colors select-none group ${
                     isActive ? 'bg-blue-100 ring-2 ring-blue-400' : 'hover:bg-gray-100'
                   }`}
+                  style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none' }}
                   onClick={() => handleSelectStamp(stamp.id)}
                 >
                   {/* Delete button */}
@@ -167,20 +168,21 @@ export function CustomStampUpload() {
                       e.stopPropagation();
                       removeStamp(stamp.id);
                     }}
-                    className="absolute top-0.5 right-0.5 w-5 h-5 flex items-center justify-center rounded-full bg-red-100 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-0.5 right-0.5 w-5 h-5 flex items-center justify-center rounded-full bg-red-100 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity z-10"
                     title="Remove"
                   >
                     <X size={10} />
                   </button>
 
-                  {/* Thumbnail */}
-                  <img
-                    src={stamp.dataUrl}
-                    alt={stamp.name}
-                    className="w-14 h-14 object-contain pointer-events-none"
+                  {/* Thumbnail — use div with background-image to prevent native image drag */}
+                  <div
+                    className="w-14 h-14 bg-contain bg-center bg-no-repeat pointer-events-none"
+                    style={{ backgroundImage: `url(${stamp.dataUrl})` }}
+                    role="img"
+                    aria-label={stamp.name}
                   />
 
-                  <span className={`text-[10px] mt-1 text-center leading-tight truncate w-full ${
+                  <span className={`text-[10px] mt-1 text-center leading-tight truncate w-full select-none ${
                     isActive ? 'text-blue-600 font-medium' : 'text-gray-500'
                   }`}>
                     {stamp.name}
