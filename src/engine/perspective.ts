@@ -4,10 +4,14 @@ import type { PerspectiveConfig } from '../types';
  * Calculate the perspective scale factor for a stamp based on its vertical
  * position relative to the horizon line.
  *
- * Objects at the ground line get scale 1.0 (full size).
- * Objects at the horizon line approach 0 (infinitely far away).
+ * Objects at the ground line get scale = baseScale (full foreground size).
+ * Objects at the horizon line get very small.
  * The relationship is linear in screen space, which matches single-point
  * perspective projection for objects on a ground plane.
+ *
+ * baseScale is calibrated so that a stamp at the ground line appears at
+ * a reasonable size relative to the background image (roughly 20% of
+ * image height for a standard tree).
  */
 export function calculateScale(
   stampBottomY: number,
@@ -20,8 +24,9 @@ export function calculateScale(
   if (range <= 0) return baseScale;
 
   const distFromHorizon = stampBottomY - horizonY;
-  // Clamp to a minimum so stamps never fully disappear
-  const ratio = Math.max(0.05, Math.min(1.5, distFromHorizon / range));
+  // Clamp: minimum 8% so stamps near horizon are still visible,
+  // max 1.5 so stamps below ground don't get absurdly large
+  const ratio = Math.max(0.08, Math.min(1.5, distFromHorizon / range));
   return ratio * baseScale;
 }
 
@@ -34,14 +39,22 @@ export function getStampBottomY(centerY: number, unscaledHeight: number, current
 }
 
 /**
- * Create default perspective config for a given canvas size.
+ * Create default perspective config for a given canvas/image size.
  * Places horizon at 1/3 from top, ground at bottom.
+ *
+ * baseScale is calculated so that a stamp with defaultHeight ~100px
+ * renders at about 20% of the image height when placed at the ground line.
+ * This makes stamps immediately visible and proportional to the photo.
  */
 export function createDefaultPerspective(canvasWidth: number, canvasHeight: number): PerspectiveConfig {
+  // A stamp's defaultHeight is ~100px. We want it to appear as ~20% of image height
+  // at ground level. So baseScale = (0.20 * canvasHeight) / 100
+  const baseScale = Math.max(1, (canvasHeight * 0.20) / 100);
+
   return {
     horizonY: canvasHeight * 0.33,
     groundY: canvasHeight,
     vanishingPointX: canvasWidth / 2,
-    baseScale: 1.0,
+    baseScale,
   };
 }

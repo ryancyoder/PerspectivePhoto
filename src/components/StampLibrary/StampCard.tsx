@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { StampAsset } from '../../types';
 import { renderStampToCanvas } from '../../engine/stampAssets';
+import { useProjectStore } from '../../store/useProjectStore';
 
 interface StampCardProps {
   asset: StampAsset;
@@ -8,6 +9,9 @@ interface StampCardProps {
 
 export function StampCard({ asset }: StampCardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const setPendingStamp = useProjectStore((s) => s.setPendingStamp);
+  const pendingStampAssetId = useProjectStore((s) => s.pendingStampAssetId);
+  const isActive = pendingStampAssetId === asset.id;
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -24,11 +28,19 @@ export function StampCard({ asset }: StampCardProps) {
     e.dataTransfer.effectAllowed = 'copy';
   };
 
+  const handleClick = () => {
+    // Toggle: tap to select for placement, tap again to deselect
+    setPendingStamp(isActive ? null : asset.id);
+  };
+
   return (
     <div
       draggable
       onDragStart={handleDragStart}
-      className="flex flex-col items-center p-2 rounded-lg cursor-grab active:cursor-grabbing hover:bg-gray-100 transition-colors touch-manipulation"
+      onClick={handleClick}
+      className={`flex flex-col items-center p-2 rounded-lg cursor-pointer transition-colors touch-manipulation ${
+        isActive ? 'bg-blue-100 ring-2 ring-blue-400' : 'hover:bg-gray-100'
+      }`}
     >
       <canvas
         ref={canvasRef}
@@ -36,7 +48,9 @@ export function StampCard({ asset }: StampCardProps) {
         height={60}
         className="pointer-events-none"
       />
-      <span className="text-[10px] text-gray-500 mt-1 text-center leading-tight">
+      <span className={`text-[10px] mt-1 text-center leading-tight ${
+        isActive ? 'text-blue-600 font-medium' : 'text-gray-500'
+      }`}>
         {asset.name}
       </span>
     </div>

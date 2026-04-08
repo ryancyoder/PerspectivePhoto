@@ -28,6 +28,7 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
   const setStageTransform = useProjectStore((s) => s.setStageTransform);
   const setCanvasSize = useProjectStore((s) => s.setCanvasSize);
   const addStamp = useProjectStore((s) => s.addStamp);
+  const pendingStampAssetId = useProjectStore((s) => s.pendingStampAssetId);
 
   // Fit canvas to container
   useEffect(() => {
@@ -53,14 +54,51 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
     return () => observer.disconnect();
   }, [backgroundWidth, backgroundHeight, setCanvasSize, setStageTransform]);
 
-  // Handle click on empty area to deselect
+  // Convert a screen point to canvas (stage) coordinates
+  const screenToCanvas = useCallback(
+    (screenX: number, screenY: number) => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return { x: 0, y: 0 };
+      const currentScale = useProjectStore.getState().stageScale;
+      const currentX = useProjectStore.getState().stageX;
+      const currentY = useProjectStore.getState().stageY;
+      return {
+        x: (screenX - rect.left - currentX) / currentScale,
+        y: (screenY - rect.top - currentY) / currentScale,
+      };
+    },
+    []
+  );
+
+  // Handle click/tap on stage — either place pending stamp or deselect
   const handleStageClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+      const pending = useProjectStore.getState().pendingStampAssetId;
+
+      if (pending && backgroundImage) {
+        // Place the pending stamp at the click position
+        const stage = stageRef.current;
+        if (!stage) return;
+        const pos = stage.getPointerPosition();
+        if (!pos) return;
+        // Convert from screen to canvas coordinates
+        const currentScale = useProjectStore.getState().stageScale;
+        const currentX = useProjectStore.getState().stageX;
+        const currentY = useProjectStore.getState().stageY;
+        const canvasPos = {
+          x: (pos.x - currentX) / currentScale,
+          y: (pos.y - currentY) / currentScale,
+        };
+        addStamp(pending, canvasPos.x, canvasPos.y);
+        return;
+      }
+
+      // If we clicked on the stage background (not a stamp), deselect
       if (e.target === e.target.getStage()) {
         selectStamp(null);
       }
     },
-    [selectStamp]
+    [backgroundImage, stageRef, addStamp, selectStamp]
   );
 
   // Handle pinch-to-zoom and scroll-to-zoom
@@ -139,30 +177,22 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
     lastDist.current = 0;
   }, []);
 
-  // Handle drop from stamp library
+  // Handle drop from stamp library (desktop drag-and-drop)
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
       const assetId = e.dataTransfer.getData('stamp-asset-id');
       if (!assetId) return;
 
-      const stage = stageRef.current;
-      if (!stage) return;
-
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return;
-
-      // Convert screen coordinates to stage coordinates
-      const x = (e.clientX - rect.left - stageX) / stageScale;
-      const y = (e.clientY - rect.top - stageY) / stageScale;
-
-      addStamp(assetId, x, y);
+      const pos = screenToCanvas(e.clientX, e.clientY);
+      addStamp(assetId, pos.x, pos.y);
     },
-    [stageRef, stageX, stageY, stageScale, addStamp]
+    [screenToCanvas, addStamp]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
   }, []);
 
   // Sort stamps by zIndex for rendering order
@@ -171,10 +201,13 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
   // Determine if stage should be draggable (pan mode)
   const isDraggable = toolMode === 'pan';
 
+  // Show placement cursor when there's a pending stamp
+  const cursorClass = pendingStampAssetId ? 'cursor-crosshair' : '';
+
   return (
     <div
       ref={containerRef}
-      className="flex-1 bg-gray-100 relative overflow-hidden"
+      className={`flex-1 bg-gray-100 relative overflow-hidden ${cursorClass}`}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
     >
@@ -184,6 +217,13 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
             <p className="text-lg font-medium">Upload a photo to get started</p>
             <p className="text-sm mt-1">Use the Upload button in the toolbar</p>
           </div>
+        </div>
+      )}
+
+      {/* Pending stamp indicator */}
+      {pendingStampAssetId && backgroundImage && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-medium z-10 pointer-events-none">
+          Tap on photo to place plant
         </div>
       )}
 

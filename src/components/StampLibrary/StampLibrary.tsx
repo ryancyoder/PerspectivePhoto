@@ -91,7 +91,7 @@ export function StampLibrary() {
           ))}
         </div>
         <p className="text-[10px] text-gray-300 text-center mt-3">
-          Drag onto photo
+          Tap to select, then tap photo to place
         </p>
       </div>
     </div>

@@ -22,6 +22,7 @@ interface ProjectState {
   // Stamps
   stamps: PlacedStamp[];
   selectedStampId: string | null;
+  pendingStampAssetId: string | null; // stamp waiting to be placed on canvas
 
   // Tool
   toolMode: ToolMode;
@@ -48,6 +49,7 @@ interface ProjectState {
   removeStamp: (id: string) => void;
   selectStamp: (id: string | null) => void;
   duplicateStamp: (id: string) => void;
+  setPendingStamp: (assetId: string | null) => void;
 
   setToolMode: (mode: ToolMode) => void;
   toggleSidebar: () => void;
@@ -75,6 +77,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   perspective: createDefaultPerspective(1024, 768),
   stamps: [],
   selectedStampId: null,
+  pendingStampAssetId: null,
   toolMode: 'select',
   sidebarCollapsed: false,
   propertiesTrayOpen: false,
@@ -126,6 +129,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set((state) => ({
       stamps: [...state.stamps, stamp],
       selectedStampId: stamp.id,
+      pendingStampAssetId: null,
       propertiesTrayOpen: true,
     }));
   },
@@ -167,7 +171,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }));
   },
 
-  setToolMode: (mode) => set({ toolMode: mode, selectedStampId: null }),
+  setPendingStamp: (assetId) => set({ pendingStampAssetId: assetId, selectedStampId: null }),
+
+  setToolMode: (mode) => set({ toolMode: mode, selectedStampId: null, pendingStampAssetId: null }),
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
   setPropertiesTrayOpen: (open) => set({ propertiesTrayOpen: open }),
 
