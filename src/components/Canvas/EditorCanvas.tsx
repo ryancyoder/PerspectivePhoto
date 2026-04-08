@@ -22,7 +22,6 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
   const stamps = useProjectStore((s) => s.stamps);
   const selectedStampId = useProjectStore((s) => s.selectedStampId);
   const selectStamp = useProjectStore((s) => s.selectStamp);
-  const toolMode = useProjectStore((s) => s.toolMode);
   const stageScale = useProjectStore((s) => s.stageScale);
   const stageX = useProjectStore((s) => s.stageX);
   const stageY = useProjectStore((s) => s.stageY);
@@ -31,14 +30,13 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
   const addStamp = useProjectStore((s) => s.addStamp);
   const pendingStampAssetId = useProjectStore((s) => s.pendingStampAssetId);
 
-  // Fit canvas to container
+  // Fit canvas to container — photo stays locked in place
   useEffect(() => {
     const updateSize = () => {
       if (!containerRef.current) return;
       const { clientWidth, clientHeight } = containerRef.current;
       setCanvasSize(clientWidth, clientHeight);
 
-      // If we have a background, fit it to view
       if (backgroundWidth && backgroundHeight) {
         const scaleX = clientWidth / backgroundWidth;
         const scaleY = clientHeight / backgroundHeight;
@@ -55,34 +53,16 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
     return () => observer.disconnect();
   }, [backgroundWidth, backgroundHeight, setCanvasSize, setStageTransform]);
 
-  // Convert a screen point to canvas (stage) coordinates
-  const screenToCanvas = useCallback(
-    (screenX: number, screenY: number) => {
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return { x: 0, y: 0 };
-      const currentScale = useProjectStore.getState().stageScale;
-      const currentX = useProjectStore.getState().stageX;
-      const currentY = useProjectStore.getState().stageY;
-      return {
-        x: (screenX - rect.left - currentX) / currentScale,
-        y: (screenY - rect.top - currentY) / currentScale,
-      };
-    },
-    []
-  );
-
   // Handle click/tap on stage — either place pending stamp or deselect
   const handleStageClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
       const pending = useProjectStore.getState().pendingStampAssetId;
 
       if (pending && backgroundImage) {
-        // Place the pending stamp at the click position
         const stage = stageRef.current;
         if (!stage) return;
         const pos = stage.getPointerPosition();
         if (!pos) return;
-        // Convert from screen to canvas coordinates
         const currentScale = useProjectStore.getState().stageScale;
         const currentX = useProjectStore.getState().stageX;
         const currentY = useProjectStore.getState().stageY;
@@ -94,7 +74,7 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
         return;
       }
 
-      // If we clicked on the stage background (not a stamp), deselect
+      // Clicked on empty stage area — deselect
       if (e.target === e.target.getStage()) {
         selectStamp(null);
       }
@@ -102,7 +82,7 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
     [backgroundImage, stageRef, addStamp, selectStamp]
   );
 
-  // Handle pinch-to-zoom and scroll-to-zoom
+  // Scroll-wheel zoom (desktop only, intentional)
   const handleWheel = useCallback(
     (e: Konva.KonvaEventObject<WheelEvent>) => {
       e.evt.preventDefault();
@@ -130,65 +110,23 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
     [stageRef, setStageTransform]
   );
 
-  // Handle touch pinch zoom
-  const lastCenter = useRef<{ x: number; y: number } | null>(null);
-  const lastDist = useRef<number>(0);
-
-  const handleTouchMove = useCallback(
-    (e: Konva.KonvaEventObject<TouchEvent>) => {
-      const touch1 = e.evt.touches[0];
-      const touch2 = e.evt.touches[1];
-      if (!touch1 || !touch2) return;
-
-      e.evt.preventDefault();
-      const stage = stageRef.current;
-      if (!stage) return;
-
-      const p1 = { x: touch1.clientX, y: touch1.clientY };
-      const p2 = { x: touch2.clientX, y: touch2.clientY };
-
-      const center = {
-        x: (p1.x + p2.x) / 2,
-        y: (p1.y + p2.y) / 2,
-      };
-      const dist = Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
-
-      if (!lastCenter.current) {
-        lastCenter.current = center;
-        lastDist.current = dist;
-        return;
-      }
-
-      const scale = stage.scaleX() * (dist / lastDist.current);
-      const clampedScale = Math.max(0.1, Math.min(5, scale));
-
-      const dx = center.x - lastCenter.current.x;
-      const dy = center.y - lastCenter.current.y;
-
-      setStageTransform(clampedScale, stage.x() + dx, stage.y() + dy);
-
-      lastCenter.current = center;
-      lastDist.current = dist;
-    },
-    [stageRef, setStageTransform]
-  );
-
-  const handleTouchEnd = useCallback(() => {
-    lastCenter.current = null;
-    lastDist.current = 0;
-  }, []);
-
-  // Handle drop from stamp library (desktop drag-and-drop)
+  // Handle drop from stamp library (desktop)
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
       const assetId = e.dataTransfer.getData('stamp-asset-id');
       if (!assetId) return;
 
-      const pos = screenToCanvas(e.clientX, e.clientY);
-      addStamp(assetId, pos.x, pos.y);
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const currentScale = useProjectStore.getState().stageScale;
+      const currentX = useProjectStore.getState().stageX;
+      const currentY = useProjectStore.getState().stageY;
+      const x = (e.clientX - rect.left - currentX) / currentScale;
+      const y = (e.clientY - rect.top - currentY) / currentScale;
+      addStamp(assetId, x, y);
     },
-    [screenToCanvas, addStamp]
+    [addStamp]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -198,9 +136,6 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
 
   // Sort stamps by zIndex for rendering order
   const sortedStamps = [...stamps].sort((a, b) => a.zIndex - b.zIndex);
-
-  // Determine if stage should be draggable (pan mode)
-  const isDraggable = toolMode === 'pan';
 
   // Show placement cursor when there's a pending stamp
   const cursorClass = pendingStampAssetId ? 'cursor-crosshair' : '';
@@ -236,20 +171,13 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
         scaleY={stageScale}
         x={stageX}
         y={stageY}
-        draggable={isDraggable}
+        draggable={false}
         onClick={handleStageClick}
         onTap={handleStageClick}
         onWheel={handleWheel}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onDragEnd={(e) => {
-          if (isDraggable) {
-            setStageTransform(stageScale, e.target.x(), e.target.y());
-          }
-        }}
       >
         {/* Background photo layer */}
-        <Layer>
+        <Layer listening={false}>
           <BackgroundImage />
         </Layer>
 

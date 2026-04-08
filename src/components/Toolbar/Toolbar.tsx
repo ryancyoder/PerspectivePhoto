@@ -3,7 +3,6 @@ import {
   Upload,
   MousePointer2,
   Minus,
-  Move,
   Undo2,
   Redo2,
   Download,
@@ -90,7 +89,6 @@ export function Toolbar({ stageRef }: ToolbarProps) {
     { mode: 'select', icon: MousePointer2, label: 'Select' },
     { mode: 'horizon', icon: Minus, label: 'Horizon' },
     { mode: 'calibrate', icon: PersonStanding, label: 'Calibrate' },
-    { mode: 'pan', icon: Move, label: 'Pan' },
   ];
 
   return (
