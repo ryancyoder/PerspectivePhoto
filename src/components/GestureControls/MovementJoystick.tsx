@@ -28,7 +28,7 @@ export function MovementJoystick() {
   const THUMB_SIZE = 52;
   const MAX_OFFSET = (PAD_SIZE - THUMB_SIZE) / 2;
   // Movement speed: pixels per frame at max joystick deflection
-  const SPEED = 4 / stageScale; // Compensate for stage zoom
+  const SPEED = 1.5 / stageScale; // Compensate for stage zoom
 
   // Continuous movement loop — runs while joystick is held
   useEffect(() => {
