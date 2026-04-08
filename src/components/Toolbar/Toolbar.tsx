@@ -8,6 +8,7 @@ import {
   Redo2,
   Download,
   Trash2,
+  PersonStanding,
 } from 'lucide-react';
 import Konva from 'konva';
 import { useProjectStore } from '../../store/useProjectStore';
@@ -88,6 +89,7 @@ export function Toolbar({ stageRef }: ToolbarProps) {
   const tools: { mode: ToolMode; icon: typeof MousePointer2; label: string }[] = [
     { mode: 'select', icon: MousePointer2, label: 'Select' },
     { mode: 'horizon', icon: Minus, label: 'Horizon' },
+    { mode: 'calibrate', icon: PersonStanding, label: 'Calibrate' },
     { mode: 'pan', icon: Move, label: 'Pan' },
   ];
 

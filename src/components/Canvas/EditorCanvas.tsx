@@ -5,6 +5,7 @@ import { useProjectStore } from '../../store/useProjectStore';
 import { BackgroundImage } from './BackgroundImage';
 import { PerspectiveGuides } from './PerspectiveGuides';
 import { PlantStamp } from './PlantStamp';
+import { CalibrationOverlay } from './CalibrationOverlay';
 
 interface EditorCanvasProps {
   stageRef: React.RefObject<Konva.Stage | null>;
@@ -263,9 +264,10 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
           ))}
         </Layer>
 
-        {/* Perspective guides layer (on top) */}
+        {/* Perspective guides + calibration layer (on top) */}
         <Layer>
           {backgroundImage && <PerspectiveGuides />}
+          {backgroundImage && <CalibrationOverlay />}
         </Layer>
       </Stage>
     </div>
