@@ -16,6 +16,7 @@ import {
   FolderUp,
 } from 'lucide-react';
 import { useCustomStampStore } from '../../store/useCustomStampStore';
+import { SettingsMenu } from '../SettingsMenu';
 import Konva from 'konva';
 import { useProjectStore } from '../../store/useProjectStore';
 import type { ToolMode } from '../../types';
@@ -257,6 +258,9 @@ export function Toolbar({ stageRef }: ToolbarProps) {
       <ToolButton onClick={handleExport} label="Export PNG" accent>
         <Download size={20} />
       </ToolButton>
+
+      {/* Settings */}
+      <SettingsMenu />
     </div>
   );
 }

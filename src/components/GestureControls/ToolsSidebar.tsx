@@ -129,40 +129,6 @@ export function ToolsSidebar() {
       <UndoRedoButtons />
 
       <div className="flex-1" />
-
-      {/* Saturation slider */}
-      <SaturationSlider />
-    </div>
-  );
-}
-
-function SaturationSlider() {
-  const saturation = useProjectStore((s) => s.backgroundSaturation);
-  const setSaturation = useProjectStore((s) => s.setBackgroundSaturation);
-  const backgroundImage = useProjectStore((s) => s.backgroundImage);
-
-  if (!backgroundImage) return null;
-
-  const pct = Math.round((1 + saturation) * 50); // -1→0%, 0→50%, 1→100%
-
-  return (
-    <div className="w-full px-2 pb-2 flex flex-col items-center">
-      <div className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
-        Saturation
-      </div>
-      <input
-        type="range"
-        min={-1}
-        max={0}
-        step={0.05}
-        value={saturation}
-        onChange={(e) => setSaturation(parseFloat(e.target.value))}
-        className="w-full accent-blue-500"
-        style={{ WebkitAppearance: 'none', height: 28 }}
-      />
-      <div className="text-[10px] text-gray-400 mt-0.5">
-        {pct}%
-      </div>
     </div>
   );
 }
