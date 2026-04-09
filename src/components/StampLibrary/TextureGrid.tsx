@@ -10,8 +10,8 @@ export function TextureGrid() {
   const customStamps = useCustomStampStore((s) => s.stamps);
   const removeCustomStamp = useCustomStampStore((s) => s.removeStamp);
 
-  // Filter custom stamps that are textures (prefixed with "tex-custom-")
-  const customTextures = customStamps.filter(s => s.id.startsWith('custom-tex-'));
+  // Filter custom stamps that are textures (name starts with "tex-")
+  const customTextures = customStamps.filter(s => s.name.startsWith('tex-'));
 
   const handleSelectBuiltin = (textureId: string) => {
     const dataUrl = renderTextureToDataUrl(textureId, 3);
@@ -28,29 +28,31 @@ export function TextureGrid() {
     setViewMode('photo');
   };
 
-  const handleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-    for (const file of Array.from(files)) {
-      // Prefix custom texture IDs so we can identify them
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const dataUrl = ev.target?.result as string;
-        const img = new Image();
-        img.onload = () => {
-          const name = file.name.replace(/\.[^.]+$/, '');
-          useCustomStampStore.getState().addStampFromDataUrl(
-            `tex-${name}`,
-            dataUrl,
-            img.naturalWidth,
-            img.naturalHeight
-          );
+  const handleUpload = useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.multiple = true;
+    input.onchange = (e) => {
+      const files = (e.target as HTMLInputElement).files;
+      if (!files) return;
+      for (const file of Array.from(files)) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const dataUrl = ev.target?.result as string;
+          const img = new window.Image();
+          img.onload = () => {
+            const name = 'tex-' + file.name.replace(/\.[^.]+$/, '');
+            useCustomStampStore.getState().addStampFromDataUrl(
+              name, dataUrl, img.naturalWidth, img.naturalHeight
+            );
+          };
+          img.src = dataUrl;
         };
-        img.src = dataUrl;
-      };
-      reader.readAsDataURL(file);
-    }
-    e.target.value = '';
+        reader.readAsDataURL(file);
+      }
+    };
+    input.click();
   }, []);
 
   const handlePaste = useCallback(async () => {
@@ -63,13 +65,11 @@ export function TextureGrid() {
           const reader = new FileReader();
           reader.onload = (ev) => {
             const dataUrl = ev.target?.result as string;
-            const img = new Image();
+            const img = new window.Image();
             img.onload = () => {
               useCustomStampStore.getState().addStampFromDataUrl(
                 `tex-Pasted ${new Date().toLocaleTimeString()}`,
-                dataUrl,
-                img.naturalWidth,
-                img.naturalHeight
+                dataUrl, img.naturalWidth, img.naturalHeight
               );
             };
             img.src = dataUrl;
@@ -87,11 +87,13 @@ export function TextureGrid() {
     <div className="flex-1 overflow-y-auto p-2 flex flex-col">
       {/* Upload / Paste buttons */}
       <div className="flex gap-1 mb-2">
-        <label className="flex-1 flex items-center justify-center gap-1 py-2 px-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium hover:bg-blue-100 transition-colors cursor-pointer select-none">
+        <button
+          onClick={handleUpload}
+          className="flex-1 flex items-center justify-center gap-1 py-2 px-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium hover:bg-blue-100 transition-colors select-none"
+        >
           <Plus size={14} />
           Upload
-          <input type="file" accept="image/*" multiple className="hidden" onChange={handleUpload} />
-        </label>
+        </button>
         <button
           onClick={handlePaste}
           className="flex-1 flex items-center justify-center gap-1 py-2 px-2 bg-purple-50 text-purple-600 rounded-lg text-xs font-medium hover:bg-purple-100 transition-colors select-none"
