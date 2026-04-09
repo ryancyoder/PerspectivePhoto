@@ -1,4 +1,4 @@
-export type StampCategory = 'trees' | 'shrubs' | 'flowers' | 'hardscape' | 'custom';
+export type StampCategory = 'trees' | 'shrubs' | 'flowers' | 'hardscape' | 'textures' | 'custom';
 
 export type ToolMode = 'select' | 'horizon' | 'calibrate' | 'eraser' | 'pan';
 

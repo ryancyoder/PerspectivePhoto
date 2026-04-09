@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Trees, Flower2, Shrub, Fence, FolderUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Trees, Flower2, Shrub, Fence, FolderUp, Layers, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useProjectStore } from '../../store/useProjectStore';
 import { STAMP_ASSETS } from '../../engine/stampAssets';
 import { StampCard } from './StampCard';
 import { CustomStampUpload } from './CustomStampUpload';
+import { TextureGrid } from './TextureGrid';
 import type { StampCategory } from '../../types';
 
 type TabId = StampCategory | 'custom';
@@ -13,6 +14,7 @@ const CATEGORIES: { id: TabId; label: string; icon: typeof Trees }[] = [
   { id: 'shrubs', label: 'Shrubs', icon: Shrub },
   { id: 'flowers', label: 'Flowers', icon: Flower2 },
   { id: 'hardscape', label: 'Hardscape', icon: Fence },
+  { id: 'textures', label: 'Surfaces', icon: Layers },
   { id: 'custom', label: 'My Library', icon: FolderUp },
 ];
 
@@ -21,7 +23,7 @@ export function StampLibrary() {
   const sidebarCollapsed = useProjectStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useProjectStore((s) => s.toggleSidebar);
 
-  const filteredAssets = activeTab !== 'custom'
+  const filteredAssets = activeTab !== 'custom' && activeTab !== 'textures'
     ? STAMP_ASSETS.filter((a) => a.category === activeTab)
     : [];
 
@@ -54,12 +56,16 @@ export function StampLibrary() {
     );
   }
 
+  const headerText = activeTab === 'custom' ? 'My Library'
+    : activeTab === 'textures' ? 'Surfaces'
+    : 'Plants';
+
   return (
     <div className="w-48 bg-white border-r border-gray-200 flex flex-col shrink-0">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
         <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-          {activeTab === 'custom' ? 'My Library' : 'Plants'}
+          {headerText}
         </span>
         <button
           onClick={toggleSidebar}
@@ -92,6 +98,8 @@ export function StampLibrary() {
       {/* Content */}
       {activeTab === 'custom' ? (
         <CustomStampUpload />
+      ) : activeTab === 'textures' ? (
+        <TextureGrid />
       ) : (
         <div className="flex-1 overflow-y-auto p-2">
           <div className="grid grid-cols-2 gap-1">
