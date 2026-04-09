@@ -23,6 +23,15 @@ export function PlantStamp({ stamp, isSelected }: PlantStampProps) {
   const selectStamp = useProjectStore((s) => s.selectStamp);
   const pushHistory = useProjectStore((s) => s.pushHistory);
   const toolMode = useProjectStore((s) => s.toolMode);
+  const selectedStampId = useProjectStore((s) => s.selectedStampId);
+  const stamps = useProjectStore((s) => s.stamps);
+
+  // Lock: only the selected stamp is draggable.
+  // Only stamps of the same assetId are selectable while one is selected.
+  const selectedStamp = selectedStampId ? stamps.find((s) => s.id === selectedStampId) : null;
+  const isLocked = selectedStamp && selectedStamp.assetId !== stamp.assetId;
+  const canDrag = isSelected && toolMode === 'select';
+  const canSelect = !isLocked || isSelected;
 
   const isCustom = stamp.assetId.startsWith('custom-');
   const builtinAsset = isCustom ? null : getAssetById(stamp.assetId);
@@ -81,10 +90,11 @@ export function PlantStamp({ stamp, isSelected }: PlantStampProps) {
         offsetY={height} // Anchor at bottom center for perspective
         rotation={stamp.rotation}
         scaleX={stamp.flipX ? -1 : 1}
-        opacity={stamp.opacity}
-        draggable={toolMode === 'select'}
-        onClick={() => selectStamp(stamp.id)}
-        onTap={() => selectStamp(stamp.id)}
+        opacity={isLocked ? stamp.opacity * 0.5 : stamp.opacity}
+        draggable={canDrag}
+        listening={canSelect}
+        onClick={() => { if (canSelect) selectStamp(stamp.id); }}
+        onTap={() => { if (canSelect) selectStamp(stamp.id); }}
         onDragStart={() => pushHistory()}
         onDragEnd={(e) => {
           updateStamp(stamp.id, {
