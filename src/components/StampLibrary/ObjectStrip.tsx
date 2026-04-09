@@ -112,23 +112,12 @@ export function ObjectStrip() {
         </button>
       </div>
 
-      {/* Category toggle button */}
-      <button
-        onClick={() => {
-          const nextIndex = (currentIndex + 1) % CATEGORIES.length;
-          const next = CATEGORIES[nextIndex];
-          if (next.id === 'textures') {
-            setActiveSidebarTab('textures');
-          } else {
-            setActiveSidebarTab('objects');
-            setActiveCategory(next.id);
-          }
-        }}
-        className="w-full mx-1.5 mt-1 mb-1 h-11 flex items-center justify-center gap-1.5 rounded-lg bg-black/30 backdrop-blur-sm text-white border border-white/20 active:bg-black/50 transition-colors"
-      >
-        <RefreshCw size={12} />
-        <span className="text-[10px] font-semibold uppercase tracking-wider">{currentLabel}</span>
-      </button>
+      {/* Category label */}
+      <div className="w-full px-1.5 mt-1 mb-1">
+        <div className="text-[10px] font-semibold text-gray-500 text-center uppercase tracking-wider">
+          {currentLabel}
+        </div>
+      </div>
 
       <div className="w-24 h-px bg-gray-200" />
 
@@ -155,7 +144,26 @@ export function ObjectStrip() {
         })}
       </div>
 
-      {/* Joystick at bottom */}
+      {/* Category toggle + Joystick at bottom */}
+      <div className="shrink-0 flex flex-col items-center border-t border-gray-200/50 pt-2">
+        <button
+          onClick={() => {
+            const nextIndex = (currentIndex + 1) % CATEGORIES.length;
+            const next = CATEGORIES[nextIndex];
+            if (next.id === 'textures') {
+              setActiveSidebarTab('textures');
+            } else {
+              setActiveSidebarTab('objects');
+              setActiveCategory(next.id);
+            }
+          }}
+          className="w-11 h-11 rounded-full bg-black/30 backdrop-blur-sm border border-white/20 flex items-center justify-center active:bg-black/50 transition-colors select-none mb-2"
+          style={{ WebkitTouchCallout: 'none' }}
+          title="Next category"
+        >
+          <RefreshCw size={18} className="text-white" />
+        </button>
+      </div>
       <MovementJoystick />
     </div>
   );
