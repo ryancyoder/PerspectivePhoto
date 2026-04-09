@@ -160,72 +160,73 @@ function DuplicateButton({ selectedStampId, duplicateStamp }: {
   selectedStampId: string | null;
   duplicateStamp: (id: string) => void;
 }) {
-  const [isHeld, setIsHeld] = useState(false);
-  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const wasHeld = useRef(false);
+  const [isActive, setIsActive] = useState(false);
 
-  const handleDown = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    wasHeld.current = false;
-    holdTimer.current = setTimeout(() => {
-      // Enter stamp-gun mode
-      wasHeld.current = true;
-      DuplicateStampMode.active = true;
-      setIsHeld(true);
-    }, 300);
-  }, []);
-
-  const handleUp = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (holdTimer.current) clearTimeout(holdTimer.current);
-
-    if (wasHeld.current) {
-      // Release stamp-gun mode
-      DuplicateStampMode.active = false;
-      setIsHeld(false);
-      wasHeld.current = false;
-    } else {
-      // Quick tap — single duplicate
-      if (selectedStampId) duplicateStamp(selectedStampId);
-    }
-  }, [selectedStampId, duplicateStamp]);
-
-  // Ensure we clean up if component unmounts while held
+  // Sync global flag with local state
   useEffect(() => {
-    return () => {
-      DuplicateStampMode.active = false;
-      if (holdTimer.current) clearTimeout(holdTimer.current);
-    };
-  }, []);
+    DuplicateStampMode.active = isActive;
+    return () => { DuplicateStampMode.active = false; };
+  }, [isActive]);
+
+  // Turn off when stamp is deselected
+  useEffect(() => {
+    if (!selectedStampId) {
+      setIsActive(false);
+    }
+  }, [selectedStampId]);
+
+  const handleTap = useCallback(() => {
+    if (!selectedStampId) return;
+
+    if (isActive) {
+      // Already in stamp-gun mode — tap again to exit
+      setIsActive(false);
+    } else {
+      // First tap — single duplicate
+      duplicateStamp(selectedStampId);
+    }
+  }, [selectedStampId, isActive, duplicateStamp]);
+
+  const handleDoubleTap = useCallback(() => {
+    if (!selectedStampId) return;
+    // Double-tap enters stamp-gun mode
+    setIsActive(true);
+  }, [selectedStampId]);
+
+  const lastTap = useRef(0);
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const now = Date.now();
+    if (now - lastTap.current < 400) {
+      // Double tap — enter stamp-gun mode
+      handleDoubleTap();
+    } else {
+      // Single tap — duplicate once or exit stamp-gun
+      handleTap();
+    }
+    lastTap.current = now;
+  }, [handleTap, handleDoubleTap]);
 
   return (
     <div
-      className={`mt-3 w-11 h-11 rounded-full backdrop-blur-sm border flex items-center justify-center transition-colors select-none ${
-        isHeld
-          ? 'bg-blue-500 border-white scale-110'
+      className={`mt-3 w-11 h-11 rounded-full backdrop-blur-sm border flex items-center justify-center transition-all select-none ${
+        isActive
+          ? 'bg-blue-500 border-white scale-110 shadow-lg shadow-blue-500/50'
           : 'bg-black/30 border-white/20'
       }`}
       style={{ WebkitTouchCallout: 'none' }}
-      title="Tap to duplicate • Hold + tap canvas to stamp multiples"
-      onTouchStart={handleDown}
-      onTouchEnd={handleUp}
-      onMouseDown={handleDown}
-      onMouseUp={handleUp}
-      onMouseLeave={() => {
-        if (holdTimer.current) clearTimeout(holdTimer.current);
-        if (wasHeld.current) {
-          DuplicateStampMode.active = false;
-          setIsHeld(false);
-          wasHeld.current = false;
-        }
-      }}
+      title="Tap: duplicate once • Double-tap: stamp-gun mode"
+      onPointerUp={handlePointerUp}
     >
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
       </svg>
+      {isActive && (
+        <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-blue-400 animate-pulse" />
+      )}
     </div>
   );
 }
