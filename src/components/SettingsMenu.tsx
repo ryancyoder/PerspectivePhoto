@@ -9,10 +9,16 @@ export function SettingsMenu() {
   const setSaturation = useProjectStore((s) => s.setBackgroundSaturation);
   const opacity = useProjectStore((s) => s.backgroundOpacity);
   const setOpacity = useProjectStore((s) => s.setBackgroundOpacity);
+  const brightness = useProjectStore((s) => s.backgroundBrightness);
+  const setBrightness = useProjectStore((s) => s.setBackgroundBrightness);
+  const contrast = useProjectStore((s) => s.backgroundContrast);
+  const setContrast = useProjectStore((s) => s.setBackgroundContrast);
   const backgroundImage = useProjectStore((s) => s.backgroundImage);
 
   const satPct = Math.round(saturation * 100);
   const opaPct = Math.round(opacity * 100);
+  const briPct = Math.round(brightness * 100);
+  const conPct = Math.round(contrast * 100);
 
   if (!open) {
     return (
@@ -67,6 +73,48 @@ export function SettingsMenu() {
                 <div className="flex justify-between text-[10px] text-gray-300 mt-0.5">
                   <span>B&W</span>
                   <span>Full Color</span>
+                </div>
+              </div>
+
+              {/* Brightness */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-gray-600">Brightness</span>
+                  <span className="text-xs text-gray-400">{briPct > 0 ? '+' : ''}{briPct}</span>
+                </div>
+                <input
+                  type="range"
+                  min={-0.5}
+                  max={0.5}
+                  step={0.02}
+                  value={brightness}
+                  onChange={(e) => setBrightness(parseFloat(e.target.value))}
+                  className="w-full accent-blue-500 h-8"
+                />
+                <div className="flex justify-between text-[10px] text-gray-300 mt-0.5">
+                  <span>Dark</span>
+                  <span>Bright</span>
+                </div>
+              </div>
+
+              {/* Contrast */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-gray-600">Contrast</span>
+                  <span className="text-xs text-gray-400">{conPct > 0 ? '+' : ''}{conPct}</span>
+                </div>
+                <input
+                  type="range"
+                  min={-0.5}
+                  max={0.5}
+                  step={0.02}
+                  value={contrast}
+                  onChange={(e) => setContrast(parseFloat(e.target.value))}
+                  className="w-full accent-blue-500 h-8"
+                />
+                <div className="flex justify-between text-[10px] text-gray-300 mt-0.5">
+                  <span>Flat</span>
+                  <span>High</span>
                 </div>
               </div>
 
