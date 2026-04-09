@@ -8,12 +8,10 @@ export function PerspectiveGuides() {
   const setHorizonY = useProjectStore((s) => s.setHorizonY);
   const pushHistory = useProjectStore((s) => s.pushHistory);
 
-  const isHorizonMode = toolMode === 'horizon';
-  const lineColor = isHorizonMode ? '#ff6b35' : '#ff6b35';
-  const lineOpacity = isHorizonMode ? 0.9 : 0.5;
-  const dashPattern = isHorizonMode ? [] : [12, 6];
+  // Only show when horizon tool is active
+  if (toolMode !== 'horizon') return null;
 
-  // Handle size for touch-friendly drag target
+  const lineColor = '#ff6b35';
   const handleRadius = 18;
   const width = backgroundWidth || 1024;
 
@@ -24,8 +22,7 @@ export function PerspectiveGuides() {
         points={[0, perspective.horizonY, width, perspective.horizonY]}
         stroke={lineColor}
         strokeWidth={2}
-        opacity={lineOpacity}
-        dash={dashPattern}
+        opacity={0.9}
         listening={false}
       />
 
@@ -71,7 +68,7 @@ export function PerspectiveGuides() {
         fontSize={12}
         fontStyle="bold"
         fill={lineColor}
-        opacity={lineOpacity}
+        opacity={0.9}
         listening={false}
         letterSpacing={2}
       />

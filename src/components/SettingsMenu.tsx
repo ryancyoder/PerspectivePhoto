@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings, X, RefreshCw } from 'lucide-react';
+import { Settings, X, RefreshCw, Minus } from 'lucide-react';
 import { useProjectStore } from '../store/useProjectStore';
 
 export function SettingsMenu() {
@@ -14,6 +14,8 @@ export function SettingsMenu() {
   const contrast = useProjectStore((s) => s.backgroundContrast);
   const setContrast = useProjectStore((s) => s.setBackgroundContrast);
   const backgroundImage = useProjectStore((s) => s.backgroundImage);
+  const toolMode = useProjectStore((s) => s.toolMode);
+  const setToolMode = useProjectStore((s) => s.setToolMode);
 
   const satPct = Math.round(saturation * 100);
   const opaPct = Math.round(opacity * 100);
@@ -139,6 +141,27 @@ export function SettingsMenu() {
                 </div>
               </div>
             </>
+          )}
+
+          {/* Perspective Tools */}
+          {backgroundImage && (
+            <div>
+              <div className="text-xs font-medium text-gray-600 mb-2">Perspective</div>
+              <button
+                onClick={() => {
+                  setToolMode(toolMode === 'horizon' ? 'select' : 'horizon');
+                  setOpen(false);
+                }}
+                className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  toolMode === 'horizon'
+                    ? 'bg-orange-500 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <Minus size={16} />
+                {toolMode === 'horizon' ? 'Horizon Active — Tap to Done' : 'Adjust Horizon Line'}
+              </button>
+            </div>
           )}
 
           {/* Hard Refresh */}

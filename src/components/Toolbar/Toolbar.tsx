@@ -2,7 +2,6 @@ import { useCallback } from 'react';
 import {
   Upload,
   MousePointer2,
-  Minus,
   Undo2,
   Redo2,
   Download,
@@ -160,7 +159,6 @@ export function Toolbar({ stageRef }: ToolbarProps) {
 
   const tools: { mode: ToolMode; icon: typeof MousePointer2; label: string }[] = [
     { mode: 'select', icon: MousePointer2, label: 'Select' },
-    { mode: 'horizon', icon: Minus, label: 'Horizon' },
     { mode: 'calibrate', icon: PersonStanding, label: 'Calibrate' },
     { mode: 'eraser', icon: Eraser, label: 'Erase Overlay' },
   ];

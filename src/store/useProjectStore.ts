@@ -140,6 +140,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       perspective,
       stamps: [],
       selectedStampId: null,
+      toolMode: 'horizon' as const,
       history: [],
       historyIndex: -1,
     });
