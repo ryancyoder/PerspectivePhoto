@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Plus, X, ClipboardPaste } from 'lucide-react';
 import { useProjectStore } from '../../store/useProjectStore';
 import { useCustomStampStore } from '../../store/useCustomStampStore';
@@ -131,27 +131,79 @@ export function ObjectStrip() {
         {items.map((stamp) => {
           const isActive = !isTextures && pendingStampAssetId === stamp.id;
           return (
-            <div
+            <StampThumbnail
               key={stamp.id}
-              className={`relative w-24 h-24 shrink-0 rounded-lg cursor-pointer transition-all group ${
-                isActive ? 'ring-2 ring-blue-500 bg-blue-50' : 'hover:bg-gray-100'
-              }`}
-              onClick={() => handleTap(stamp)}
-            >
-              <div
-                className="w-full h-full rounded-lg bg-contain bg-center bg-no-repeat"
-                style={{ backgroundImage: `url(${stamp.dataUrl})` }}
-              />
-              <button
-                onClick={(e) => { e.stopPropagation(); removeStamp(stamp.id); }}
-                className="absolute -top-1 -left-1 w-4 h-4 flex items-center justify-center rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <X size={8} />
-              </button>
-            </div>
+              stamp={stamp}
+              isActive={isActive}
+              onTap={() => handleTap(stamp)}
+              onDelete={() => removeStamp(stamp.id)}
+            />
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function StampThumbnail({ stamp, isActive, onTap, onDelete }: {
+  stamp: { id: string; dataUrl: string };
+  isActive: boolean;
+  onTap: () => void;
+  onDelete: () => void;
+}) {
+  const [showDelete, setShowDelete] = useState(false);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const didLongPress = useRef(false);
+
+  const handleTouchStart = () => {
+    didLongPress.current = false;
+    longPressTimer.current = setTimeout(() => {
+      didLongPress.current = true;
+      setShowDelete(true);
+    }, 500);
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    if (!didLongPress.current) {
+      // Normal tap — if delete is showing, dismiss it; otherwise select
+      if (showDelete) {
+        setShowDelete(false);
+      } else {
+        onTap();
+      }
+    }
+    didLongPress.current = false;
+  };
+
+  const handleTouchMove = () => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+  };
+
+  return (
+    <div
+      className={`relative w-24 h-24 shrink-0 rounded-lg cursor-pointer transition-all ${
+        showDelete ? 'ring-2 ring-red-400 animate-pulse' : isActive ? 'ring-2 ring-blue-500 bg-blue-50' : ''
+      }`}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchMove={handleTouchMove}
+      onMouseDown={handleTouchStart}
+      onMouseUp={handleTouchEnd}
+      onMouseLeave={() => { if (longPressTimer.current) clearTimeout(longPressTimer.current); }}
+    >
+      <div
+        className="w-full h-full rounded-lg bg-contain bg-center bg-no-repeat"
+        style={{ backgroundImage: `url(${stamp.dataUrl})` }}
+      />
+      {showDelete && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(); setShowDelete(false); }}
+          className="absolute inset-0 flex items-center justify-center rounded-lg bg-red-500/80"
+        >
+          <X size={24} className="text-white" />
+        </button>
+      )}
     </div>
   );
 }
