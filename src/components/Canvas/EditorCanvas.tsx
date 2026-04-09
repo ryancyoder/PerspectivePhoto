@@ -182,6 +182,50 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
     };
   }, [stageRef]);
 
+  const getCanvasPosFromClient = useCallback((clientX: number, clientY: number) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    const s = useProjectStore.getState();
+    return {
+      x: (clientX - rect.left - s.stageX) / s.stageScale,
+      y: (clientY - rect.top - s.stageY) / s.stageScale,
+    };
+  }, []);
+
+  // Apple Pencil / pointer event handler for stamp-gun mode
+  // Catches pencil taps that Konva's onClick/onTap might miss during multi-touch
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handlePointerDown = (e: PointerEvent) => {
+      if (!DuplicateStampMode.active) return;
+      // Only handle pen/pencil input here (touch is handled by Konva)
+      if (e.pointerType !== 'pen') return;
+
+      const pos = getCanvasPosFromClient(e.clientX, e.clientY);
+      if (!pos) return;
+
+      const state = useProjectStore.getState();
+      const srcStamp = state.stamps.find((s) => s.id === state.selectedStampId);
+      if (srcStamp) {
+        addStamp(srcStamp.assetId, pos.x, pos.y);
+        const newId = useProjectStore.getState().selectedStampId;
+        if (newId) {
+          useProjectStore.getState().updateStamp(newId, {
+            manualScale: srcStamp.manualScale,
+            rotation: srcStamp.rotation,
+            flipX: srcStamp.flipX,
+            opacity: srcStamp.opacity,
+          });
+        }
+      }
+    };
+
+    container.addEventListener('pointerdown', handlePointerDown);
+    return () => container.removeEventListener('pointerdown', handlePointerDown);
+  }, [getCanvasPosFromClient, addStamp]);
+
   const handleMouseDown = useCallback((_e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     if (useProjectStore.getState().toolMode !== 'eraser') return;
     eraserActive.current = true;
