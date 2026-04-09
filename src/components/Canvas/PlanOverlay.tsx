@@ -96,8 +96,7 @@ export function PlanOverlay() {
         const sWidth = (u1 - u0) * sw;
         const sHeight = (v1 - v0) * sh;
 
-        drawTriangle(ctx, planImg, sx, sy, sWidth, sHeight, tl, tr, bl);
-        drawTriangle(ctx, planImg, sx + sWidth, sy + sHeight, -sWidth, -sHeight, br, bl, tr);
+        drawQuad(ctx, planImg, sx, sy, sWidth, sHeight, tl, tr, br, bl);
       }
     }
 
@@ -264,30 +263,36 @@ function bilerp(tl: Point2D, tr: Point2D, bl: Point2D, br: Point2D, u: number, v
   };
 }
 
-function drawTriangle(
+/** Draw a sub-quad by clipping to its outline and using an affine transform.
+ *  Uses a single quad clip path — no triangle seams. */
+function drawQuad(
   ctx: CanvasRenderingContext2D, img: HTMLImageElement,
   sx: number, sy: number, sWidth: number, sHeight: number,
-  p0: Point2D, p1: Point2D, p2: Point2D
+  tl: Point2D, tr: Point2D, br: Point2D, bl: Point2D
 ) {
+  if (Math.abs(sWidth) < 0.5 || Math.abs(sHeight) < 0.5) return;
+
   ctx.save();
+
+  // Clip to quad outline (with 0.5px expansion to cover sub-pixel gaps)
   ctx.beginPath();
-  ctx.moveTo(p0.x, p0.y);
-  ctx.lineTo(p1.x, p1.y);
-  ctx.lineTo(p2.x, p2.y);
+  ctx.moveTo(tl.x - 0.5, tl.y - 0.5);
+  ctx.lineTo(tr.x + 0.5, tr.y - 0.5);
+  ctx.lineTo(br.x + 0.5, br.y + 0.5);
+  ctx.lineTo(bl.x - 0.5, bl.y + 0.5);
   ctx.closePath();
   ctx.clip();
 
-  const denom = sWidth * sHeight;
-  if (Math.abs(denom) < 0.001) { ctx.restore(); return; }
-
-  const a = (p1.x - p0.x) / sWidth;
-  const b = (p2.x - p0.x) / sHeight;
-  const c = p0.x;
-  const d = (p1.y - p0.y) / sWidth;
-  const e = (p2.y - p0.y) / sHeight;
-  const f = p0.y;
+  // Affine transform from source rect top-left corner:
+  // Maps (0,0)→tl, (sWidth,0)→tr, (0,sHeight)→bl
+  const a = (tr.x - tl.x) / sWidth;
+  const b = (bl.x - tl.x) / sHeight;
+  const c = tl.x;
+  const d = (tr.y - tl.y) / sWidth;
+  const e = (bl.y - tl.y) / sHeight;
+  const f = tl.y;
 
   ctx.setTransform(a, d, b, e, c, f);
-  ctx.drawImage(img, sx, sy, Math.abs(sWidth), Math.abs(sHeight), 0, 0, Math.abs(sWidth), Math.abs(sHeight));
+  ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
   ctx.restore();
 }
