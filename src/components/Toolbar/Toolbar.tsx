@@ -34,36 +34,36 @@ export function Toolbar({ stageRef }: ToolbarProps) {
   const historyIndex = useProjectStore((s) => s.historyIndex);
   const historyLength = useProjectStore((s) => s.history.length);
 
-  const handleFileChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
+  const handleUploadPhoto = useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-
       const reader = new FileReader();
       reader.onload = (ev) => {
         const dataUrl = ev.target?.result as string;
-        const img = new Image();
-        img.onload = () => {
-          setBackgroundImage(dataUrl, img.naturalWidth, img.naturalHeight);
-        };
+        const img = new window.Image();
+        img.onload = () => setBackgroundImage(dataUrl, img.naturalWidth, img.naturalHeight);
         img.src = dataUrl;
       };
       reader.readAsDataURL(file);
+    };
+    input.click();
+  }, [setBackgroundImage]);
 
-      // Reset the input so the same file can be re-selected
-      e.target.value = '';
-    },
-    [setBackgroundImage]
-  );
-
-  const handlePlanFileChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
+  const handleUploadPlan = useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
       const reader = new FileReader();
       reader.onload = (ev) => {
         const dataUrl = ev.target?.result as string;
-        const img = new Image();
+        const img = new window.Image();
         img.onload = () => {
           setPlanImage(dataUrl, img.naturalWidth, img.naturalHeight);
           setViewMode('plan');
@@ -71,10 +71,9 @@ export function Toolbar({ stageRef }: ToolbarProps) {
         img.src = dataUrl;
       };
       reader.readAsDataURL(file);
-      e.target.value = '';
-    },
-    [setPlanImage, setViewMode]
-  );
+    };
+    input.click();
+  }, [setPlanImage, setViewMode]);
 
   const handleExport = useCallback(() => {
     const stage = stageRef.current;
@@ -113,26 +112,14 @@ export function Toolbar({ stageRef }: ToolbarProps) {
 
   return (
     <div className="h-14 bg-white border-b border-gray-200 flex items-center px-2 gap-1 shrink-0">
-      {/* Hidden file inputs — placed here, far from each other's labels */}
-      <input id="photo-upload-input" type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-      <input id="plan-upload-input" type="file" accept="image/*" className="hidden" onChange={handlePlanFileChange} />
-
       {/* Upload perspective photo */}
-      <label
-        htmlFor="photo-upload-input"
-        className="w-11 h-11 flex items-center justify-center rounded-lg transition-colors text-gray-600 hover:bg-gray-100 cursor-pointer"
-        title="Upload Photo"
-      >
+      <ToolButton onClick={handleUploadPhoto} label="Upload Photo">
         <Upload size={20} />
-      </label>
+      </ToolButton>
       {/* Upload plan image */}
-      <label
-        htmlFor="plan-upload-input"
-        className="w-11 h-11 flex items-center justify-center rounded-lg transition-colors text-gray-600 hover:bg-gray-100 cursor-pointer"
-        title="Upload Plan Image"
-      >
+      <ToolButton onClick={handleUploadPlan} label="Upload Plan Image">
         <LayoutGrid size={20} />
-      </label>
+      </ToolButton>
 
       <div className="w-px h-8 bg-gray-200 mx-1" />
 
