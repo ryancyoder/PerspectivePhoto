@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, useEffect } from 'react';
 import { Plus, X, ClipboardPaste } from 'lucide-react';
 import { useProjectStore } from '../../store/useProjectStore';
 import { useCustomStampStore } from '../../store/useCustomStampStore';
@@ -140,6 +140,116 @@ export function ObjectStrip() {
             />
           );
         })}
+      </div>
+
+      {/* Joystick at bottom */}
+      <MovementJoystick />
+    </div>
+  );
+}
+
+function MovementJoystick() {
+  const PAD_SIZE = 110;
+  const JOY_THUMB = 44;
+  const MAX_OFFSET = (PAD_SIZE - JOY_THUMB) / 2;
+
+  const selectedStampId = useProjectStore((s) => s.selectedStampId);
+  const updateStamp = useProjectStore((s) => s.updateStamp);
+  const pushHistory = useProjectStore((s) => s.pushHistory);
+  const stageScale = useProjectStore((s) => s.stageScale);
+  const stamps = useProjectStore((s) => s.stamps);
+
+  const stamp = selectedStampId ? stamps.find((s) => s.id === selectedStampId) : null;
+  const padRef = useRef<HTMLDivElement>(null);
+  const [dragging, setDragging] = useState(false);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const velocityRef = useRef({ x: 0, y: 0 });
+  const animRef = useRef(0);
+  const historyRecorded = useRef(false);
+  const SPEED = 1.5 / stageScale;
+
+  useEffect(() => {
+    if (!dragging || !selectedStampId) return;
+    const loop = () => {
+      const { x: vx, y: vy } = velocityRef.current;
+      if (Math.abs(vx) > 0.01 || Math.abs(vy) > 0.01) {
+        const s = useProjectStore.getState().stamps.find((s) => s.id === selectedStampId);
+        if (s) updateStamp(selectedStampId, { x: s.x + vx * SPEED, y: s.y + vy * SPEED });
+      }
+      animRef.current = requestAnimationFrame(loop);
+    };
+    animRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(animRef.current);
+  }, [dragging, selectedStampId, updateStamp, SPEED]);
+
+  const getOffset = useCallback((clientX: number, clientY: number) => {
+    if (!padRef.current) return { x: 0, y: 0 };
+    const rect = padRef.current.getBoundingClientRect();
+    let dx = clientX - (rect.left + rect.width / 2);
+    let dy = clientY - (rect.top + rect.height / 2);
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > MAX_OFFSET) { dx = dx / dist * MAX_OFFSET; dy = dy / dist * MAX_OFFSET; }
+    return { x: dx, y: dy };
+  }, []);
+
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e: PointerEvent) => {
+      e.preventDefault();
+      const off = getOffset(e.clientX, e.clientY);
+      setOffset(off);
+      velocityRef.current = { x: off.x / MAX_OFFSET, y: off.y / MAX_OFFSET };
+    };
+    const onUp = () => {
+      setDragging(false);
+      setOffset({ x: 0, y: 0 });
+      velocityRef.current = { x: 0, y: 0 };
+      historyRecorded.current = false;
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); };
+  }, [dragging, getOffset]);
+
+  return (
+    <div className="shrink-0 flex flex-col items-center py-2 border-t border-gray-200/50" style={{ touchAction: 'none' }}>
+      <div className={`text-[11px] font-semibold mb-1 px-2 py-0.5 rounded-full ${stamp ? 'bg-black/40 text-white' : 'bg-gray-200 text-gray-400'}`}>
+        Move
+      </div>
+      <div
+        ref={padRef}
+        className="relative rounded-full bg-black/15 border border-white/20"
+        style={{ width: PAD_SIZE, height: PAD_SIZE }}
+        onPointerDown={(e) => {
+          if (!stamp) return;
+          e.preventDefault(); e.stopPropagation();
+          if (!historyRecorded.current) { pushHistory(); historyRecorded.current = true; }
+          setDragging(true);
+          const off = getOffset(e.clientX, e.clientY);
+          setOffset(off);
+          velocityRef.current = { x: off.x / MAX_OFFSET, y: off.y / MAX_OFFSET };
+        }}
+      >
+        <svg className="absolute inset-0 pointer-events-none" width={PAD_SIZE} height={PAD_SIZE} viewBox={`0 0 ${PAD_SIZE} ${PAD_SIZE}`}>
+          <path d={`M${PAD_SIZE/2} 10 l-5 8 h10 z`} fill="white" opacity={stamp ? 0.3 : 0.1} />
+          <path d={`M${PAD_SIZE/2} ${PAD_SIZE-10} l-5 -8 h10 z`} fill="white" opacity={stamp ? 0.3 : 0.1} />
+          <path d={`M10 ${PAD_SIZE/2} l8 -5 v10 z`} fill="white" opacity={stamp ? 0.3 : 0.1} />
+          <path d={`M${PAD_SIZE-10} ${PAD_SIZE/2} l-8 -5 v10 z`} fill="white" opacity={stamp ? 0.3 : 0.1} />
+        </svg>
+        <div
+          className={`absolute rounded-full border-2 shadow-md ${dragging ? 'bg-blue-500 border-white' : 'bg-white border-blue-400'}`}
+          style={{
+            width: JOY_THUMB, height: JOY_THUMB,
+            left: PAD_SIZE / 2 - JOY_THUMB / 2 + offset.x,
+            top: PAD_SIZE / 2 - JOY_THUMB / 2 + offset.y,
+            transition: dragging ? 'none' : 'all 0.2s ease-out',
+          }}
+        >
+          <svg className="absolute inset-0 pointer-events-none" viewBox="0 0 44 44">
+            <line x1="15" y1="22" x2="29" y2="22" stroke={dragging ? 'white' : '#93c5fd'} strokeWidth="2" strokeLinecap="round" />
+            <line x1="22" y1="15" x2="22" y2="29" stroke={dragging ? 'white' : '#93c5fd'} strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </div>
       </div>
     </div>
   );
