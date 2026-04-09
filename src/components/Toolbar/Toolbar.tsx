@@ -8,6 +8,7 @@ import {
   Download,
   Trash2,
   PersonStanding,
+  Eraser,
   Image as ImageIcon,
   LayoutGrid,
 } from 'lucide-react';
@@ -108,6 +109,7 @@ export function Toolbar({ stageRef }: ToolbarProps) {
     { mode: 'select', icon: MousePointer2, label: 'Select' },
     { mode: 'horizon', icon: Minus, label: 'Horizon' },
     { mode: 'calibrate', icon: PersonStanding, label: 'Calibrate' },
+    { mode: 'eraser', icon: Eraser, label: 'Erase Overlay' },
   ];
 
   return (

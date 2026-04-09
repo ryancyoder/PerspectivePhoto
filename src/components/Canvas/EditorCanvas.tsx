@@ -29,7 +29,9 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
   const setStageTransform = useProjectStore((s) => s.setStageTransform);
   const setCanvasSize = useProjectStore((s) => s.setCanvasSize);
   const addStamp = useProjectStore((s) => s.addStamp);
+  const toolMode = useProjectStore((s) => s.toolMode);
   const pendingStampAssetId = useProjectStore((s) => s.pendingStampAssetId);
+  const eraserActive = useRef(false);
 
   // Fit canvas to container — photo stays locked in place
   useEffect(() => {
@@ -140,13 +142,46 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
     e.dataTransfer.dropEffect = 'copy';
   }, []);
 
+  // Eraser handlers
+  const getCanvasPos = useCallback(() => {
+    const stage = stageRef.current;
+    if (!stage) return null;
+    const pos = stage.getPointerPosition();
+    if (!pos) return null;
+    const s = useProjectStore.getState();
+    return {
+      x: (pos.x - s.stageX) / s.stageScale,
+      y: (pos.y - s.stageY) / s.stageScale,
+    };
+  }, [stageRef]);
+
+  const handleMouseDown = useCallback((_e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+    if (useProjectStore.getState().toolMode !== 'eraser') return;
+    eraserActive.current = true;
+    PlanOverlay.onEraseStart();
+    const pos = getCanvasPos();
+    if (pos) PlanOverlay.onEraseMove(pos.x, pos.y);
+  }, [getCanvasPos]);
+
+  const handleMouseMove = useCallback((_e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+    if (!eraserActive.current) return;
+    const pos = getCanvasPos();
+    if (pos) PlanOverlay.onEraseMove(pos.x, pos.y);
+  }, [getCanvasPos]);
+
+  const handleMouseUp = useCallback(() => {
+    if (!eraserActive.current) return;
+    eraserActive.current = false;
+    PlanOverlay.onEraseEnd();
+  }, []);
+
   // Sort stamps by Y position for natural depth ordering:
   // stamps closer to horizon (smaller Y) render behind,
   // stamps closer to foreground (larger Y) render in front
   const sortedStamps = [...stamps].sort((a, b) => a.y - b.y);
 
   // Show placement cursor when there's a pending stamp
-  const cursorClass = pendingStampAssetId ? 'cursor-crosshair' : '';
+  const cursorClass = toolMode === 'eraser' ? 'cursor-crosshair' : pendingStampAssetId ? 'cursor-crosshair' : '';
 
   return (
     <div
@@ -161,6 +196,13 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
             <p className="text-lg font-medium">Upload a photo to get started</p>
             <p className="text-sm mt-1">Use the Upload button in the toolbar</p>
           </div>
+        </div>
+      )}
+
+      {/* Eraser mode indicator */}
+      {toolMode === 'eraser' && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-rose-500 text-white px-3 py-1 rounded-full text-xs font-medium z-10 pointer-events-none">
+          Draw to erase overlay
         </div>
       )}
 
@@ -183,6 +225,12 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
         onClick={handleStageClick}
         onTap={handleStageClick}
         onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onTouchStart={handleMouseDown}
+        onTouchMove={handleMouseMove}
+        onTouchEnd={handleMouseUp}
       >
         {/* Background photo layer */}
         <Layer listening={false}>

@@ -3,21 +3,25 @@ import { Image as KonvaImage, Circle, Line, Group } from 'react-konva';
 import { useProjectStore } from '../../store/useProjectStore';
 import type { Point2D } from '../../types';
 
-const SUBDIVISIONS = 8; // Grid subdivisions for warp quality
+const SUBDIVISIONS = 8;
+const ERASER_RADIUS = 30;
 
-/**
- * Renders the plan image warped onto the perspective photo via 4 draggable corners.
- * Uses subdivided triangle mesh for smooth perspective distortion.
- */
+type WarpCanvas = HTMLCanvasElement & { _offsetX?: number; _offsetY?: number };
+
 export function PlanOverlay() {
   const planView = useProjectStore((s) => s.planView);
   const setPlanCorners = useProjectStore((s) => s.setPlanCorners);
+  const setPlanEraseMask = useProjectStore((s) => s.setPlanEraseMask);
   const toolMode = useProjectStore((s) => s.toolMode);
   const viewMode = useProjectStore((s) => s.viewMode);
 
   const [planImg, setPlanImg] = useState<HTMLImageElement | null>(null);
-  const [warpedCanvas, setWarpedCanvas] = useState<HTMLCanvasElement & { _offsetX?: number; _offsetY?: number } | null>(null);
-  const warpCanvasRef = useRef<HTMLCanvasElement & { _offsetX?: number; _offsetY?: number } | null>(null);
+  const [warpedCanvas, setWarpedCanvas] = useState<WarpCanvas | null>(null);
+  const [displayCanvas, setDisplayCanvas] = useState<WarpCanvas | null>(null);
+  const warpCanvasRef = useRef<WarpCanvas | null>(null);
+  const maskCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const displayCanvasRef = useRef<WarpCanvas | null>(null);
+  const isErasing = useRef(false);
 
   // Load plan image
   useEffect(() => {
@@ -27,24 +31,37 @@ export function PlanOverlay() {
     img.onload = () => setPlanImg(img);
   }, [planView.image]);
 
-  // Create offscreen canvas for warping
+  // Create offscreen canvases
   useEffect(() => {
-    if (!warpCanvasRef.current) {
-      warpCanvasRef.current = document.createElement('canvas');
-    }
+    if (!warpCanvasRef.current) warpCanvasRef.current = document.createElement('canvas') as WarpCanvas;
+    if (!maskCanvasRef.current) maskCanvasRef.current = document.createElement('canvas');
+    if (!displayCanvasRef.current) displayCanvasRef.current = document.createElement('canvas') as WarpCanvas;
   }, []);
+
+  // Load existing erase mask from store
+  useEffect(() => {
+    if (!planView.eraseMask || !maskCanvasRef.current) return;
+    const img = new window.Image();
+    img.onload = () => {
+      const mc = maskCanvasRef.current!;
+      mc.width = img.naturalWidth;
+      mc.height = img.naturalHeight;
+      mc.getContext('2d')!.drawImage(img, 0, 0);
+    };
+    img.src = planView.eraseMask;
+  }, [planView.eraseMask]);
 
   // Re-render warped image whenever corners or plan image change
   useEffect(() => {
     if (!planImg || !planView.corners || !warpCanvasRef.current) {
       setWarpedCanvas(null);
+      setDisplayCanvas(null);
       return;
     }
 
     const canvas = warpCanvasRef.current;
     const corners = planView.corners;
 
-    // Compute bounding box of the 4 corners
     const minX = Math.min(corners[0].x, corners[1].x, corners[2].x, corners[3].x);
     const maxX = Math.max(corners[0].x, corners[1].x, corners[2].x, corners[3].x);
     const minY = Math.min(corners[0].y, corners[1].y, corners[2].y, corners[3].y);
@@ -58,14 +75,10 @@ export function PlanOverlay() {
     const ctx = canvas.getContext('2d')!;
     ctx.clearRect(0, 0, w, h);
 
-    // Offset corners relative to bounding box
     const c = corners.map((p) => ({ x: p.x - minX, y: p.y - minY }));
-
-    // Source image dimensions
     const sw = planImg.naturalWidth;
     const sh = planImg.naturalHeight;
 
-    // Render warped image using subdivided quads
     for (let row = 0; row < SUBDIVISIONS; row++) {
       for (let col = 0; col < SUBDIVISIONS; col++) {
         const u0 = col / SUBDIVISIONS;
@@ -73,29 +86,83 @@ export function PlanOverlay() {
         const v0 = row / SUBDIVISIONS;
         const v1 = (row + 1) / SUBDIVISIONS;
 
-        // Bilinear interpolation of corner positions for this sub-quad
         const tl = bilerp(c[0], c[1], c[3], c[2], u0, v0);
         const tr = bilerp(c[0], c[1], c[3], c[2], u1, v0);
         const br = bilerp(c[0], c[1], c[3], c[2], u1, v1);
         const bl = bilerp(c[0], c[1], c[3], c[2], u0, v1);
 
-        // Source rectangle in the plan image
         const sx = u0 * sw;
         const sy = v0 * sh;
         const sWidth = (u1 - u0) * sw;
         const sHeight = (v1 - v0) * sh;
 
-        // Draw two triangles for this sub-quad
         drawTriangle(ctx, planImg, sx, sy, sWidth, sHeight, tl, tr, bl);
         drawTriangle(ctx, planImg, sx + sWidth, sy + sHeight, -sWidth, -sHeight, br, bl, tr);
       }
     }
 
-    // Store reference for Konva to use
     canvas._offsetX = minX;
     canvas._offsetY = minY;
     setWarpedCanvas(canvas);
+
+    // Compose with erase mask
+    applyMask(canvas, maskCanvasRef.current, displayCanvasRef.current!);
+    displayCanvasRef.current!._offsetX = minX;
+    displayCanvasRef.current!._offsetY = minY;
+    setDisplayCanvas(displayCanvasRef.current);
   }, [planImg, planView.corners]);
+
+  // Erase stroke handler — draws on the mask canvas in warp-space coordinates
+  const handleEraseStroke = useCallback(
+    (stageX: number, stageY: number) => {
+      if (!warpedCanvas || !maskCanvasRef.current || !displayCanvasRef.current) return;
+      const offsetX = warpedCanvas._offsetX ?? 0;
+      const offsetY = warpedCanvas._offsetY ?? 0;
+
+      // Initialize mask canvas if needed
+      const mc = maskCanvasRef.current;
+      if (mc.width !== warpedCanvas.width || mc.height !== warpedCanvas.height) {
+        mc.width = warpedCanvas.width;
+        mc.height = warpedCanvas.height;
+      }
+
+      // Draw eraser circle on mask
+      const ctx = mc.getContext('2d')!;
+      ctx.fillStyle = 'black';
+      ctx.beginPath();
+      ctx.arc(stageX - offsetX, stageY - offsetY, ERASER_RADIUS, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Recompose display
+      applyMask(warpedCanvas, mc, displayCanvasRef.current!);
+      displayCanvasRef.current!._offsetX = offsetX;
+      displayCanvasRef.current!._offsetY = offsetY;
+      setDisplayCanvas(Object.assign(document.createElement('canvas'), {
+        width: displayCanvasRef.current!.width,
+        height: displayCanvasRef.current!.height,
+        _offsetX: offsetX,
+        _offsetY: offsetY,
+      }) as WarpCanvas);
+      // Copy pixels to the new canvas for Konva to detect the change
+      const dc = displayCanvasRef.current!;
+      const newCanvas = document.createElement('canvas') as WarpCanvas;
+      newCanvas.width = dc.width;
+      newCanvas.height = dc.height;
+      newCanvas._offsetX = offsetX;
+      newCanvas._offsetY = offsetY;
+      newCanvas.getContext('2d')!.drawImage(dc, 0, 0);
+      setDisplayCanvas(newCanvas);
+    },
+    [warpedCanvas]
+  );
+
+  // Save mask to store on erase end
+  const handleEraseEnd = useCallback(() => {
+    if (!maskCanvasRef.current) return;
+    const dataUrl = maskCanvasRef.current.toDataURL();
+    setPlanEraseMask(dataUrl);
+    isErasing.current = false;
+  }, [setPlanEraseMask]);
 
   const handleCornerDrag = useCallback(
     (index: number, x: number, y: number) => {
@@ -107,21 +174,26 @@ export function PlanOverlay() {
     [planView.corners, setPlanCorners]
   );
 
+  // Expose eraser handlers for EditorCanvas to call
+  PlanOverlay.onEraseMove = handleEraseStroke;
+  PlanOverlay.onEraseEnd = handleEraseEnd;
+  PlanOverlay.onEraseStart = () => { isErasing.current = true; };
+
   if (viewMode !== 'photo' || !planView.image || !planView.corners || !planView.visible) return null;
 
   const corners = planView.corners;
   const cornerColors = ['#ef4444', '#f97316', '#22c55e', '#3b82f6'];
-
-  // Compute the bounding box offset stored on the canvas
-  const offsetX = (warpedCanvas as any)?._offsetX ?? 0;
-  const offsetY = (warpedCanvas as any)?._offsetY ?? 0;
+  const offsetX = displayCanvas?._offsetX ?? warpedCanvas?._offsetX ?? 0;
+  const offsetY = displayCanvas?._offsetY ?? warpedCanvas?._offsetY ?? 0;
+  const showCanvas = displayCanvas ?? warpedCanvas;
+  const isEraserMode = toolMode === 'eraser';
 
   return (
     <Group>
-      {/* Warped plan image */}
-      {warpedCanvas && (
+      {/* Warped plan image (with erase mask applied) */}
+      {showCanvas && (
         <KonvaImage
-          image={warpedCanvas}
+          image={showCanvas}
           x={offsetX}
           y={offsetY}
           opacity={planView.opacity}
@@ -130,23 +202,25 @@ export function PlanOverlay() {
       )}
 
       {/* Corner outline */}
-      <Line
-        points={[
-          corners[0].x, corners[0].y,
-          corners[1].x, corners[1].y,
-          corners[2].x, corners[2].y,
-          corners[3].x, corners[3].y,
-        ]}
-        closed
-        stroke="#fff"
-        strokeWidth={2}
-        dash={[6, 4]}
-        listening={false}
-        opacity={0.7}
-      />
+      {!isEraserMode && (
+        <Line
+          points={[
+            corners[0].x, corners[0].y,
+            corners[1].x, corners[1].y,
+            corners[2].x, corners[2].y,
+            corners[3].x, corners[3].y,
+          ]}
+          closed
+          stroke="#fff"
+          strokeWidth={2}
+          dash={[6, 4]}
+          listening={false}
+          opacity={0.7}
+        />
+      )}
 
-      {/* Draggable corner handles */}
-      {corners.map((corner, i) => (
+      {/* Draggable corner handles (hidden during eraser mode) */}
+      {!isEraserMode && corners.map((corner, i) => (
         <Circle
           key={i}
           x={corner.x}
@@ -164,23 +238,35 @@ export function PlanOverlay() {
   );
 }
 
-/** Bilinear interpolation between 4 corner points */
-function bilerp(
-  tl: Point2D, tr: Point2D, bl: Point2D, br: Point2D,
-  u: number, v: number
-): Point2D {
+// Static handlers for cross-component eraser communication
+PlanOverlay.onEraseMove = (_x: number, _y: number) => {};
+PlanOverlay.onEraseEnd = () => {};
+PlanOverlay.onEraseStart = () => {};
+
+/** Apply erase mask to warped canvas → output to display canvas */
+function applyMask(src: HTMLCanvasElement, mask: HTMLCanvasElement | null, dst: HTMLCanvasElement & { _offsetX?: number; _offsetY?: number }) {
+  dst.width = src.width;
+  dst.height = src.height;
+  const ctx = dst.getContext('2d')!;
+  ctx.clearRect(0, 0, dst.width, dst.height);
+  ctx.drawImage(src, 0, 0);
+  if (mask && mask.width > 0 && mask.height > 0) {
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.drawImage(mask, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+}
+
+function bilerp(tl: Point2D, tr: Point2D, bl: Point2D, br: Point2D, u: number, v: number): Point2D {
   return {
     x: (1 - u) * (1 - v) * tl.x + u * (1 - v) * tr.x + (1 - u) * v * bl.x + u * v * br.x,
     y: (1 - u) * (1 - v) * tl.y + u * (1 - v) * tr.y + (1 - u) * v * bl.y + u * v * br.y,
   };
 }
 
-/** Draw a textured triangle using affine transform */
 function drawTriangle(
-  ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement,
-  sx: number, sy: number,
-  sWidth: number, sHeight: number,
+  ctx: CanvasRenderingContext2D, img: HTMLImageElement,
+  sx: number, sy: number, sWidth: number, sHeight: number,
   p0: Point2D, p1: Point2D, p2: Point2D
 ) {
   ctx.save();
@@ -191,8 +277,6 @@ function drawTriangle(
   ctx.closePath();
   ctx.clip();
 
-  // Compute affine transform that maps the source triangle to destination
-  // Source triangle: (0,0), (sWidth,0), (0,sHeight) → p0, p1, p2
   const denom = sWidth * sHeight;
   if (Math.abs(denom) < 0.001) { ctx.restore(); return; }
 
