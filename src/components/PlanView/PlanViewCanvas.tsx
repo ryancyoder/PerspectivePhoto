@@ -117,6 +117,20 @@ export function PlanViewCanvas() {
       const state = useProjectStore.getState();
       if (state.moveOnly) return;
 
+      // Scale mode — tap two points
+      if (scaleMode) {
+        const pos = clientToCanvas(e.clientX, e.clientY);
+        if (!pos) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (!scalePoint1) {
+          setScalePoint1(pos);
+        } else if (!scalePoint2) {
+          setScalePoint2(pos);
+        }
+        return;
+      }
+
       // Stamp-gun mode — duplicate selected plan stamp at tap position
       if (DuplicateStampMode.active) {
         // Cache source on first use
@@ -202,7 +216,7 @@ export function PlanViewCanvas() {
       document.removeEventListener('pointermove', handlePointerMove, true);
       document.removeEventListener('pointerup', handlePointerUp, true);
     };
-  }, [clientToCanvas, addPlanStamp]);
+  }, [clientToCanvas, addPlanStamp, scaleMode, scalePoint1, scalePoint2]);
 
   // Konva click — polygon selection or deselect
   const getPlanPos = useCallback(() => {
