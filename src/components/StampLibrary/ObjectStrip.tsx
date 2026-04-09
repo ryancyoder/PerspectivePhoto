@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState, useEffect } from 'react';
 import { Plus, ClipboardPaste, RefreshCw } from 'lucide-react';
 import { useProjectStore } from '../../store/useProjectStore';
-import { useCustomStampStore } from '../../store/useCustomStampStore';
+import { useCustomStampStore, usePlanSymbolStore } from '../../store/useCustomStampStore';
 
 const CATEGORIES = [
   { id: 'shade-trees', label: 'Shade Trees' },
@@ -23,13 +23,18 @@ export function ObjectStrip() {
   const setPendingStamp = useProjectStore((s) => s.setPendingStamp);
   const setPlanSelection = useProjectStore((s) => s.setPlanSelection);
   const setViewMode = useProjectStore((s) => s.setViewMode);
+  const viewMode = useProjectStore((s) => s.viewMode);
 
   const customStamps = useCustomStampStore((s) => s.stamps);
+  const planSymbols = usePlanSymbolStore((s) => s.symbols);
 
-  const isTextures = activeSidebarTab === 'textures';
+  const isPlanView = viewMode === 'plan';
+  const sourceItems = isPlanView ? planSymbols : customStamps;
+
+  const isTextures = activeSidebarTab === 'textures' && !isPlanView;
   const items = isTextures
-    ? customStamps.filter((s) => s.category === 'textures' || s.name.startsWith('tex-'))
-    : customStamps.filter((s) => s.category === activeCategory && !s.name.startsWith('tex-'));
+    ? sourceItems.filter((s) => s.category === 'textures' || s.name.startsWith('tex-'))
+    : sourceItems.filter((s) => s.category === activeCategory && !s.name.startsWith('tex-'));
 
   const currentId = isTextures ? 'textures' : activeCategory;
   const currentIndex = CATEGORIES.findIndex((c) => c.id === currentId);
@@ -51,9 +56,15 @@ export function ObjectStrip() {
               const name = isTextures
                 ? `tex-Pasted ${new Date().toLocaleTimeString()}`
                 : `Pasted ${new Date().toLocaleTimeString()}`;
-              useCustomStampStore.getState().addStampFromDataUrl(
-                name, dataUrl, img.naturalWidth, img.naturalHeight, cat as any
-              );
+              if (isPlanView) {
+                usePlanSymbolStore.getState().addSymbolFromDataUrl(
+                  name, dataUrl, img.naturalWidth, img.naturalHeight, cat as any
+                );
+              } else {
+                useCustomStampStore.getState().addStampFromDataUrl(
+                  name, dataUrl, img.naturalWidth, img.naturalHeight, cat as any
+                );
+              }
             };
             img.src = dataUrl;
           };
@@ -74,7 +85,11 @@ export function ObjectStrip() {
       if (!files) return;
       for (const file of Array.from(files)) {
         const cat = isTextures ? 'textures' as const : activeCategory;
-        useCustomStampStore.getState().addStampWithCategory(file, cat as any);
+        if (isPlanView) {
+          usePlanSymbolStore.getState().addSymbolWithCategory(file, cat as any);
+        } else {
+          useCustomStampStore.getState().addStampWithCategory(file, cat as any);
+        }
       }
     };
     input.click();
@@ -114,6 +129,11 @@ export function ObjectStrip() {
 
       {/* Category label */}
       <div className="w-full px-1.5 mt-1 mb-1">
+        {isPlanView && (
+          <div className="text-[8px] font-bold text-emerald-500 text-center uppercase tracking-widest mb-0.5">
+            2D Symbols
+          </div>
+        )}
         <div className="text-[10px] font-semibold text-gray-500 text-center uppercase tracking-wider">
           {currentLabel}
         </div>
