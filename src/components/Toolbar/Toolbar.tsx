@@ -12,7 +12,10 @@ import {
   Image as ImageIcon,
   LayoutGrid,
   Stamp,
+  FolderDown,
+  FolderUp,
 } from 'lucide-react';
+import { useCustomStampStore } from '../../store/useCustomStampStore';
 import Konva from 'konva';
 import { useProjectStore } from '../../store/useProjectStore';
 import type { ToolMode } from '../../types';
@@ -233,10 +236,15 @@ export function Toolbar({ stageRef }: ToolbarProps) {
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* App title */}
-      <span className="text-sm font-semibold text-gray-500 tracking-wide mr-2 hidden sm:block">
-        PerspectivePhoto
-      </span>
+      {/* Library import/export */}
+      <ToolButton onClick={() => useCustomStampStore.getState().importLibrary()} label="Import Library">
+        <FolderUp size={20} />
+      </ToolButton>
+      <ToolButton onClick={() => useCustomStampStore.getState().exportLibrary()} label="Export Library">
+        <FolderDown size={20} />
+      </ToolButton>
+
+      <div className="w-px h-8 bg-gray-200 mx-1" />
 
       {/* Paste/Flatten overlay */}
       {hasOverlay && viewMode === 'photo' && (

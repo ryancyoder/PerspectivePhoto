@@ -106,6 +106,8 @@ interface CustomStampLibrary {
   removeStamp: (id: string) => void;
   renameStamp: (id: string, name: string) => void;
   getStamp: (id: string) => CustomStamp | undefined;
+  exportLibrary: () => void;
+  importLibrary: () => void;
 }
 
 export const useCustomStampStore = create<CustomStampLibrary>((set, get) => ({
@@ -186,6 +188,56 @@ export const useCustomStampStore = create<CustomStampLibrary>((set, get) => ({
   },
 
   getStamp: (id) => get().stamps.find((s) => s.id === id),
+
+  exportLibrary: () => {
+    const stamps = get().stamps;
+    if (stamps.length === 0) return;
+    const json = JSON.stringify(stamps);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'perspectivephoto-library.json';
+    link.click();
+    URL.revokeObjectURL(url);
+  },
+
+  importLibrary: () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        try {
+          const stamps: CustomStamp[] = JSON.parse(ev.target?.result as string);
+          if (!Array.isArray(stamps)) return;
+          for (const stamp of stamps) {
+            if (!stamp.id || !stamp.dataUrl) continue;
+            // Skip if already exists
+            if (get().stamps.find((s) => s.id === stamp.id)) continue;
+            const s: CustomStamp = {
+              id: stamp.id,
+              name: stamp.name || 'Imported',
+              category: stamp.category || 'custom',
+              dataUrl: stamp.dataUrl,
+              naturalWidth: stamp.naturalWidth || 100,
+              naturalHeight: stamp.naturalHeight || 100,
+              createdAt: stamp.createdAt || Date.now(),
+            };
+            set((state) => ({ stamps: [...state.stamps, s] }));
+            await dbPut(s);
+          }
+        } catch {
+          console.warn('Failed to import library');
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  },
 }));
 
 // Auto-load on import
