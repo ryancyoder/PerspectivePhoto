@@ -1,5 +1,6 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
 import { useProjectStore } from '../../store/useProjectStore';
+import { DuplicateStampMode } from '../Canvas/EditorCanvas';
 
 const TRACK_HEIGHT = 200;
 const THUMB_SIZE = 44;
@@ -149,18 +150,82 @@ export function SizeSlider() {
         </div>
       </div>
 
-      {/* Duplicate button */}
-      <button
-        onClick={() => { if (selectedStampId) duplicateStamp(selectedStampId); }}
-        className="mt-3 w-11 h-11 rounded-full bg-black/30 backdrop-blur-sm border border-white/20 flex items-center justify-center active:bg-blue-500 transition-colors"
-        style={{ WebkitTouchCallout: 'none' }}
-        title="Duplicate"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-        </svg>
-      </button>
+      {/* Duplicate button — tap to duplicate once, HOLD + tap canvas to stamp multiples */}
+      <DuplicateButton selectedStampId={selectedStampId} duplicateStamp={duplicateStamp} />
+    </div>
+  );
+}
+
+function DuplicateButton({ selectedStampId, duplicateStamp }: {
+  selectedStampId: string | null;
+  duplicateStamp: (id: string) => void;
+}) {
+  const [isHeld, setIsHeld] = useState(false);
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wasHeld = useRef(false);
+
+  const handleDown = useCallback((e: React.TouchEvent | React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    wasHeld.current = false;
+    holdTimer.current = setTimeout(() => {
+      // Enter stamp-gun mode
+      wasHeld.current = true;
+      DuplicateStampMode.active = true;
+      setIsHeld(true);
+    }, 300);
+  }, []);
+
+  const handleUp = useCallback((e: React.TouchEvent | React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (holdTimer.current) clearTimeout(holdTimer.current);
+
+    if (wasHeld.current) {
+      // Release stamp-gun mode
+      DuplicateStampMode.active = false;
+      setIsHeld(false);
+      wasHeld.current = false;
+    } else {
+      // Quick tap — single duplicate
+      if (selectedStampId) duplicateStamp(selectedStampId);
+    }
+  }, [selectedStampId, duplicateStamp]);
+
+  // Ensure we clean up if component unmounts while held
+  useEffect(() => {
+    return () => {
+      DuplicateStampMode.active = false;
+      if (holdTimer.current) clearTimeout(holdTimer.current);
+    };
+  }, []);
+
+  return (
+    <div
+      className={`mt-3 w-11 h-11 rounded-full backdrop-blur-sm border flex items-center justify-center transition-colors select-none ${
+        isHeld
+          ? 'bg-blue-500 border-white scale-110'
+          : 'bg-black/30 border-white/20'
+      }`}
+      style={{ WebkitTouchCallout: 'none' }}
+      title="Tap to duplicate • Hold + tap canvas to stamp multiples"
+      onTouchStart={handleDown}
+      onTouchEnd={handleUp}
+      onMouseDown={handleDown}
+      onMouseUp={handleUp}
+      onMouseLeave={() => {
+        if (holdTimer.current) clearTimeout(holdTimer.current);
+        if (wasHeld.current) {
+          DuplicateStampMode.active = false;
+          setIsHeld(false);
+          wasHeld.current = false;
+        }
+      }}
+    >
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+      </svg>
     </div>
   );
 }

@@ -8,6 +8,9 @@ import { PlantStamp } from './PlantStamp';
 import { CalibrationOverlay } from './CalibrationOverlay';
 import { PlanOverlay } from './PlanOverlay';
 
+/** Global flag for duplicate stamping mode (held by SizeSlider's duplicate button) */
+export const DuplicateStampMode = { active: false };
+
 interface EditorCanvasProps {
   stageRef: React.RefObject<Konva.Stage | null>;
 }
@@ -76,6 +79,27 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
             x: (pos.x - currentX) / currentScale,
             y: (pos.y - currentY) / currentScale,
           };
+
+          // Duplicate stamp mode — hold duplicate button + tap to place copies
+          if (DuplicateStampMode.active) {
+            const srcStamp = useProjectStore.getState().stamps.find(
+              (s) => s.id === useProjectStore.getState().selectedStampId
+            );
+            if (srcStamp) {
+              addStamp(srcStamp.assetId, canvasPos.x, canvasPos.y);
+              // Match the source stamp's scale
+              const newId = useProjectStore.getState().selectedStampId;
+              if (newId) {
+                useProjectStore.getState().updateStamp(newId, {
+                  manualScale: srcStamp.manualScale,
+                  rotation: srcStamp.rotation,
+                  flipX: srcStamp.flipX,
+                  opacity: srcStamp.opacity,
+                });
+              }
+            }
+            return;
+          }
 
           // Place pending stamp
           if (pending && backgroundImage) {
