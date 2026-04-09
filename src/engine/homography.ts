@@ -1,19 +1,15 @@
-import type { MatchedPoint } from '../types';
+interface PointPair {
+  photoX: number;
+  photoY: number;
+  planX: number;
+  planY: number;
+}
 
 /**
  * Compute a 3x3 homography matrix from matched point pairs using
  * Direct Linear Transform (DLT).
- *
- * Requires at least 4 point pairs for a full projective transform.
- * With fewer points:
- * - 2 pairs: similarity (translation + scale + rotation)
- * - 3 pairs: affine transform
- * - 4+ pairs: full homography
- *
- * Returns a flat 9-element array [h00,h01,h02, h10,h11,h12, h20,h21,h22]
- * or null if insufficient points.
  */
-export function computeHomography(points: MatchedPoint[]): number[] | null {
+export function computeHomography(points: PointPair[]): number[] | null {
   if (points.length < 4) {
     // Fall back to affine for 3 points, similarity for 2
     if (points.length >= 2) return computeAffineApprox(points);
@@ -80,7 +76,7 @@ export function invertHomography(H: number[]): number[] | null {
  * Approximate affine/similarity transform for 2-3 point pairs.
  * Returns a homography-format 9-element array (with h6=h7=0, h8=1).
  */
-function computeAffineApprox(points: MatchedPoint[]): number[] | null {
+function computeAffineApprox(points: PointPair[]): number[] | null {
   if (points.length === 2) {
     // Similarity transform: translation + uniform scale + rotation
     const [p1, p2] = points;

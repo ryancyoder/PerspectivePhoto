@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuid } from 'uuid';
-import type { PlacedStamp, PerspectiveConfig, ToolMode, HistoryEntry, ViewMode, PlanViewConfig } from '../types';
-import { computeHomography, invertHomography } from '../engine/homography';
+import type { PlacedStamp, PerspectiveConfig, ToolMode, HistoryEntry, ViewMode, PlanViewConfig, Point2D } from '../types';
 import { createDefaultPerspective } from '../engine/perspective';
 
 interface ProjectState {
@@ -59,9 +58,10 @@ interface ProjectState {
   setToolMode: (mode: ToolMode) => void;
   setViewMode: (mode: ViewMode) => void;
   setPlanImage: (dataUrl: string, width: number, height: number) => void;
-  addMatchedPoint: (photoX: number, photoY: number, planX: number, planY: number) => void;
-  removeMatchedPoint: (id: string) => void;
-  clearMatchedPoints: () => void;
+  setPlanCorners: (corners: [Point2D, Point2D, Point2D, Point2D]) => void;
+  setPlanOpacity: (opacity: number) => void;
+  setPlanVisible: (visible: boolean) => void;
+  setPlanEraseMask: (mask: string | null) => void;
   toggleSidebar: () => void;
   setPropertiesTrayOpen: (open: boolean) => void;
 
@@ -94,9 +94,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     image: null,
     imageWidth: 0,
     imageHeight: 0,
-    matchedPoints: [],
-    homography: null,
-    inverseHomography: null,
+    corners: null,
+    opacity: 0.5,
+    eraseMask: null,
+    visible: true,
   },
   sidebarCollapsed: false,
   propertiesTrayOpen: false,
@@ -195,57 +196,50 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   setToolMode: (mode) => set({ toolMode: mode, selectedStampId: null, pendingStampAssetId: null }),
   setViewMode: (mode) => set({ viewMode: mode }),
 
-  setPlanImage: (dataUrl, width, height) =>
+  setPlanImage: (dataUrl, width, height) => {
+    // Set default corners to center of the photo when first uploading
+    const bgW = get().backgroundWidth || 1024;
+    const bgH = get().backgroundHeight || 768;
+    const cx = bgW / 2;
+    const cy = bgH / 2;
+    const hw = Math.min(bgW, bgH) * 0.3;
+    const hh = hw * (height / width);
+    const defaultCorners: [{ x: number; y: number }, { x: number; y: number }, { x: number; y: number }, { x: number; y: number }] = [
+      { x: cx - hw, y: cy - hh },  // top-left
+      { x: cx + hw, y: cy - hh },  // top-right
+      { x: cx + hw, y: cy + hh },  // bottom-right
+      { x: cx - hw, y: cy + hh },  // bottom-left
+    ];
     set((state) => ({
       planView: {
         ...state.planView,
         image: dataUrl,
         imageWidth: width,
         imageHeight: height,
-        matchedPoints: [],
-        homography: null,
-        inverseHomography: null,
+        corners: defaultCorners,
+        eraseMask: null,
       },
+    }));
+  },
+
+  setPlanCorners: (corners) =>
+    set((state) => ({
+      planView: { ...state.planView, corners },
     })),
 
-  addMatchedPoint: (photoX, photoY, planX, planY) =>
-    set((state) => {
-      const points = [...state.planView.matchedPoints, { id: uuid(), photoX, photoY, planX, planY }];
-      const homography = points.length >= 2 ? computeHomography(points) : null;
-      const inv = homography ? invertHomography(homography) : null;
-      return {
-        planView: {
-          ...state.planView,
-          matchedPoints: points,
-          homography,
-          inverseHomography: inv,
-        },
-      };
-    }),
-
-  removeMatchedPoint: (id) =>
-    set((state) => {
-      const points = state.planView.matchedPoints.filter((p) => p.id !== id);
-      const homography = points.length >= 2 ? computeHomography(points) : null;
-      const inv = homography ? invertHomography(homography) : null;
-      return {
-        planView: {
-          ...state.planView,
-          matchedPoints: points,
-          homography,
-          inverseHomography: inv,
-        },
-      };
-    }),
-
-  clearMatchedPoints: () =>
+  setPlanOpacity: (opacity) =>
     set((state) => ({
-      planView: {
-        ...state.planView,
-        matchedPoints: [],
-        homography: null,
-        inverseHomography: null,
-      },
+      planView: { ...state.planView, opacity },
+    })),
+
+  setPlanVisible: (visible) =>
+    set((state) => ({
+      planView: { ...state.planView, visible },
+    })),
+
+  setPlanEraseMask: (mask) =>
+    set((state) => ({
+      planView: { ...state.planView, eraseMask: mask },
     })),
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
   setPropertiesTrayOpen: (open) => set({ propertiesTrayOpen: open }),

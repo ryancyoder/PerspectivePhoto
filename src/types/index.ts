@@ -68,23 +68,21 @@ export interface HistoryEntry {
 
 export type ViewMode = 'photo' | 'plan';
 
-/** A pair of corresponding points: one in the perspective photo, one in the plan image */
-export interface MatchedPoint {
-  id: string;
-  photoX: number;
-  photoY: number;
-  planX: number;
-  planY: number;
+/** 2D point */
+export interface Point2D {
+  x: number;
+  y: number;
 }
 
-/** Plan view configuration: uploaded image + matched point pairs */
+/** Plan overlay: uploaded plan image warped onto the perspective photo via 4 corners */
 export interface PlanViewConfig {
   image: string | null;       // data URL of the uploaded plan image
   imageWidth: number;
   imageHeight: number;
-  matchedPoints: MatchedPoint[];
-  // 3x3 homography matrix (photo→plan), computed from matched points
-  // Stored as flat 9-element array [h00,h01,h02, h10,h11,h12, h20,h21,h22]
-  homography: number[] | null;
-  inverseHomography: number[] | null; // plan→photo
+  // 4 corner positions on the perspective photo where the plan image corners map to
+  // Order: top-left, top-right, bottom-right, bottom-left
+  corners: [Point2D, Point2D, Point2D, Point2D] | null;
+  opacity: number;            // overlay opacity (0-1)
+  eraseMask: string | null;   // data URL of erase mask canvas (white = visible, black = erased)
+  visible: boolean;           // toggle overlay on/off
 }

@@ -6,7 +6,7 @@ import { BackgroundImage } from './BackgroundImage';
 import { PerspectiveGuides } from './PerspectiveGuides';
 import { PlantStamp } from './PlantStamp';
 import { CalibrationOverlay } from './CalibrationOverlay';
-import { PointMatcher } from '../PlanView/PointMatcher';
+import { PlanOverlay } from './PlanOverlay';
 
 interface EditorCanvasProps {
   stageRef: React.RefObject<Konva.Stage | null>;
@@ -71,12 +71,6 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
             x: (pos.x - currentX) / currentScale,
             y: (pos.y - currentY) / currentScale,
           };
-
-          // Point matching takes priority
-          if (PointMatcher.activeStep === 'photo') {
-            PointMatcher.onCanvasTap(canvasPos.x, canvasPos.y);
-            return;
-          }
 
           // Place pending stamp
           if (pending && backgroundImage) {
@@ -193,6 +187,11 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
         {/* Background photo layer */}
         <Layer listening={false}>
           <BackgroundImage />
+        </Layer>
+
+        {/* Plan overlay layer (warped plan image) */}
+        <Layer>
+          <PlanOverlay />
         </Layer>
 
         {/* Stamps layer */}
