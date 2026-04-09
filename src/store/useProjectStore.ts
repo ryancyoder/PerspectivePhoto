@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { v4 as uuid } from 'uuid';
 import type { PlacedStamp, PerspectiveConfig, ToolMode, HistoryEntry, ViewMode, PlanViewConfig, Point2D } from '../types';
 import { createDefaultPerspective } from '../engine/perspective';
+import { saveProjectState, loadProjectState } from './useCustomStampStore';
 
 interface ProjectState {
   // Background
@@ -402,3 +403,40 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     // The actual export logic lives in EditorCanvas
   },
 }));
+
+// ---- Auto-save project state to IndexedDB ----
+
+const SAVE_KEYS = [
+  'backgroundImage', 'backgroundWidth', 'backgroundHeight',
+  'backgroundSaturation', 'backgroundOpacity', 'backgroundBrightness', 'backgroundContrast',
+  'perspective', 'stamps', 'planStamps', 'planView',
+] as const;
+
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+useProjectStore.subscribe((state) => {
+  // Debounce saves to avoid thrashing during drag
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    const toSave: Record<string, any> = {};
+    for (const key of SAVE_KEYS) {
+      toSave[key] = state[key];
+    }
+    saveProjectState(toSave);
+  }, 1000);
+});
+
+// ---- Auto-load on startup ----
+
+loadProjectState().then((saved) => {
+  if (!saved) return;
+  const updates: Record<string, any> = {};
+  for (const key of SAVE_KEYS) {
+    if (saved[key] !== undefined) {
+      updates[key] = saved[key];
+    }
+  }
+  if (Object.keys(updates).length > 0) {
+    useProjectStore.setState(updates);
+  }
+});

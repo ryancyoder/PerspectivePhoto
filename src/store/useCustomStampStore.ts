@@ -3,9 +3,10 @@ import { v4 as uuid } from 'uuid';
 import type { CustomStamp, StampCategory } from '../types';
 
 const DB_NAME = 'perspectivephoto';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_NAME = 'custom-stamps';
 const PLAN_STORE_NAME = 'plan-symbols';
+const PROJECT_STORE_NAME = 'project-state';
 
 // ---- IndexedDB helpers ----
 
@@ -19,6 +20,9 @@ function openDB(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(PLAN_STORE_NAME)) {
         db.createObjectStore(PLAN_STORE_NAME, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(PROJECT_STORE_NAME)) {
+        db.createObjectStore(PROJECT_STORE_NAME);
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -246,6 +250,36 @@ export const useCustomStampStore = create<CustomStampLibrary>((set, get) => ({
 
 // Auto-load on import
 useCustomStampStore.getState().loadStamps();
+
+// ---- Project State Persistence ----
+
+export async function saveProjectState(state: Record<string, any>): Promise<void> {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(PROJECT_STORE_NAME, 'readwrite');
+      const store = tx.objectStore(PROJECT_STORE_NAME);
+      store.put(state, 'current');
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch { /* silent */ }
+}
+
+export async function loadProjectState(): Promise<Record<string, any> | null> {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(PROJECT_STORE_NAME, 'readonly');
+      const store = tx.objectStore(PROJECT_STORE_NAME);
+      const req = store.get('current');
+      req.onsuccess = () => resolve(req.result ?? null);
+      req.onerror = () => reject(req.error);
+    });
+  } catch {
+    return null;
+  }
+}
 
 // ---- Plan Symbols Store (2D plan view symbols, same categories, separate DB) ----
 
