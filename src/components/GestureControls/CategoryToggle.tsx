@@ -38,7 +38,7 @@ export function CategoryToggle() {
   return (
     <button
       onClick={handleTap}
-      className="absolute right-20 bottom-[220px] z-20 px-3 py-1.5 bg-black/30 backdrop-blur-sm text-white rounded-full text-[11px] font-medium select-none border border-white/20 active:bg-black/50 transition-colors"
+      className="absolute right-32 bottom-[220px] z-20 h-11 px-4 flex items-center justify-center bg-black/30 backdrop-blur-sm text-white rounded-lg text-[11px] font-medium select-none border border-white/20 active:bg-black/50 transition-colors"
       style={{ WebkitTouchCallout: 'none' }}
     >
       {currentLabel}

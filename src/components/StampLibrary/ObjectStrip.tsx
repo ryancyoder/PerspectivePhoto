@@ -83,28 +83,28 @@ export function ObjectStrip() {
 
   return (
     <div
-      className="absolute right-0 top-0 bottom-0 w-16 bg-white/80 backdrop-blur-sm border-l border-gray-200/50 flex flex-col items-center z-10"
+      className="absolute right-0 top-0 bottom-0 w-28 bg-white/80 backdrop-blur-sm border-l border-gray-200/50 flex flex-col items-center z-10"
       style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none' }}
     >
-      {/* Upload button */}
-      <button
-        onClick={handleUpload}
-        className="w-12 h-10 mt-1 flex items-center justify-center rounded-lg bg-blue-50 text-blue-500 hover:bg-blue-100 transition-colors shrink-0"
-        title="Upload"
-      >
-        <Plus size={20} />
-      </button>
+      {/* Upload + Paste side by side */}
+      <div className="flex gap-1 px-1.5 mt-1 mb-1 w-full">
+        <button
+          onClick={handleUpload}
+          className="flex-1 h-11 flex items-center justify-center rounded-lg bg-black/30 backdrop-blur-sm text-white border border-white/20 active:bg-black/50 transition-colors shrink-0"
+          title="Upload"
+        >
+          <Plus size={20} />
+        </button>
+        <button
+          onClick={handlePaste}
+          className="flex-1 h-11 flex items-center justify-center rounded-lg bg-black/30 backdrop-blur-sm text-white border border-white/20 active:bg-black/50 transition-colors shrink-0"
+          title="Paste from clipboard"
+        >
+          <ClipboardPaste size={18} />
+        </button>
+      </div>
 
-      {/* Paste from clipboard */}
-      <button
-        onClick={handlePaste}
-        className="w-12 h-10 mb-1 flex items-center justify-center rounded-lg bg-purple-50 text-purple-500 hover:bg-purple-100 transition-colors shrink-0"
-        title="Paste from clipboard"
-      >
-        <ClipboardPaste size={18} />
-      </button>
-
-      <div className="w-10 h-px bg-gray-200 mb-1" />
+      <div className="w-24 h-px bg-gray-200 mb-1" />
 
       {/* Scrollable object list */}
       <div className="flex-1 overflow-y-auto w-full flex flex-col items-center gap-1 pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
@@ -120,7 +120,7 @@ export function ObjectStrip() {
           return (
             <div
               key={stamp.id}
-              className={`relative w-14 h-14 shrink-0 rounded-lg cursor-pointer transition-all group ${
+              className={`relative w-24 h-24 shrink-0 rounded-lg cursor-pointer transition-all group ${
                 isActive ? 'ring-2 ring-blue-500 bg-blue-50' : 'hover:bg-gray-100'
               }`}
               onClick={() => handleTap(stamp)}
