@@ -25,7 +25,12 @@ export function PlanOverlay() {
 
   // Load the cropped selection image (not the full plan)
   useEffect(() => {
-    if (!planView.selectionImage) { setPlanImg(null); return; }
+    if (!planView.selectionImage) {
+      setPlanImg(null);
+      setWarpedCanvas(null);
+      setDisplayCanvas(null);
+      return;
+    }
     const img = new window.Image();
     img.src = planView.selectionImage;
     img.onload = () => setPlanImg(img);
