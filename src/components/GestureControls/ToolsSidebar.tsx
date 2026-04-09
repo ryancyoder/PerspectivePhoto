@@ -20,6 +20,7 @@ export function ToolsSidebar() {
   const updateStamp = useProjectStore((s) => s.updateStamp);
   const pushHistory = useProjectStore((s) => s.pushHistory);
   const duplicateStamp = useProjectStore((s) => s.duplicateStamp);
+  const removeStamp = useProjectStore((s) => s.removeStamp);
 
   const stamp = selectedStampId ? stamps.find((s) => s.id === selectedStampId) : null;
 
@@ -121,6 +122,20 @@ export function ToolsSidebar() {
           {stampGunActive && <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-blue-400 animate-pulse" />}
         </button>
       </div>
+
+      {/* Delete selected */}
+      <button
+        onClick={() => { if (selectedStampId) removeStamp(selectedStampId); }}
+        className={`mt-1 w-11 h-11 rounded-full backdrop-blur-sm border flex items-center justify-center transition-colors select-none ${
+          stamp ? 'bg-red-500/70 border-white/20 active:bg-red-600' : 'bg-gray-200 border-gray-300 opacity-40'
+        }`}
+        disabled={!stamp}
+        title="Delete selected"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+        </svg>
+      </button>
 
       {/* Move-only toggle */}
       <MoveOnlyButton />
