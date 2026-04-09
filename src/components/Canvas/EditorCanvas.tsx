@@ -77,21 +77,33 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
   }, []);
 
   // ---- Press-drag-release placement (works with finger AND Apple Pencil) ----
-  // Handles: pending stamp placement, stamp-gun mode
-  // Flow: pointerdown creates stamp → pointermove updates position → pointerup finalizes
+  // Uses document-level capture phase listeners so they fire BEFORE Konva
+  // can consume the events. This is critical for Apple Pencil which fires
+  // pointer events that Konva's canvas may intercept.
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
+    const isOverCanvas = (e: PointerEvent) => {
+      const rect = container.getBoundingClientRect();
+      return e.clientX >= rect.left && e.clientX <= rect.right &&
+             e.clientY >= rect.top && e.clientY <= rect.bottom;
+    };
+
     const handlePointerDown = (e: PointerEvent) => {
+      if (!isOverCanvas(e)) return;
+
       const state = useProjectStore.getState();
 
-      // Stamp-gun mode: any pointer type
+      // Stamp-gun mode
       if (DuplicateStampMode.active) {
         const pos = clientToCanvas(e.clientX, e.clientY);
         if (!pos) return;
         const srcStamp = state.stamps.find((s) => s.id === state.selectedStampId);
         if (!srcStamp) return;
+
+        e.preventDefault();
+        e.stopPropagation();
 
         addStamp(srcStamp.assetId, pos.x, pos.y);
         const newId = useProjectStore.getState().selectedStampId;
@@ -113,6 +125,9 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
         const pos = clientToCanvas(e.clientX, e.clientY);
         if (!pos) return;
 
+        e.preventDefault();
+        e.stopPropagation();
+
         addStamp(state.pendingStampAssetId, pos.x, pos.y);
         const newId = useProjectStore.getState().selectedStampId;
         if (newId) {
@@ -124,8 +139,8 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
     };
 
     const handlePointerMove = (e: PointerEvent) => {
-      // Only track the pointer that started the placement
       if (!placingStampId.current || e.pointerId !== placingPointerId.current) return;
+      e.preventDefault();
 
       const pos = clientToCanvas(e.clientX, e.clientY);
       if (!pos) return;
@@ -139,7 +154,6 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
     const handlePointerUp = (e: PointerEvent) => {
       if (!placingStampId.current || e.pointerId !== placingPointerId.current) return;
 
-      // Finalize position
       const pos = clientToCanvas(e.clientX, e.clientY);
       if (pos) {
         useProjectStore.getState().updateStamp(placingStampId.current, {
@@ -157,16 +171,17 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
       placingPointerId.current = null;
     };
 
-    container.addEventListener('pointerdown', handlePointerDown);
-    container.addEventListener('pointermove', handlePointerMove);
-    container.addEventListener('pointerup', handlePointerUp);
-    container.addEventListener('pointercancel', handlePointerCancel);
+    // CAPTURE PHASE — fires before Konva can consume the events
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    document.addEventListener('pointermove', handlePointerMove, true);
+    document.addEventListener('pointerup', handlePointerUp, true);
+    document.addEventListener('pointercancel', handlePointerCancel, true);
 
     return () => {
-      container.removeEventListener('pointerdown', handlePointerDown);
-      container.removeEventListener('pointermove', handlePointerMove);
-      container.removeEventListener('pointerup', handlePointerUp);
-      container.removeEventListener('pointercancel', handlePointerCancel);
+      document.removeEventListener('pointerdown', handlePointerDown, true);
+      document.removeEventListener('pointermove', handlePointerMove, true);
+      document.removeEventListener('pointerup', handlePointerUp, true);
+      document.removeEventListener('pointercancel', handlePointerCancel, true);
     };
   }, [clientToCanvas, addStamp]);
 
