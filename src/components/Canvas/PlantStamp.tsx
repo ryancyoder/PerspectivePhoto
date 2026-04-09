@@ -96,6 +96,13 @@ export function PlantStamp({ stamp, isSelected }: PlantStampProps) {
         onClick={() => { if (canSelect) selectStamp(stamp.id); }}
         onTap={() => { if (canSelect) selectStamp(stamp.id); }}
         onDragStart={() => pushHistory()}
+        onDragMove={(e) => {
+          // Live update position so perspective scale recalculates during drag
+          updateStamp(stamp.id, {
+            x: e.target.x(),
+            y: e.target.y(),
+          });
+        }}
         onDragEnd={(e) => {
           updateStamp(stamp.id, {
             x: e.target.x(),
