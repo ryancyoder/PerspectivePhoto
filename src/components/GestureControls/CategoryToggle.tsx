@@ -1,3 +1,4 @@
+import { RefreshCw } from 'lucide-react';
 import { useProjectStore } from '../../store/useProjectStore';
 
 const CATEGORIES = [
@@ -10,10 +11,6 @@ const CATEGORIES = [
   { id: 'textures', label: 'Surfaces' },
 ];
 
-/**
- * Category cycle button — sits above the joystick (bottom-right area).
- * Tap to cycle through categories. Shows the current category name.
- */
 export function CategoryToggle() {
   const activeCategory = useProjectStore((s) => s.activeCategory ?? 'shade-trees');
   const activeSidebarTab = useProjectStore((s) => s.activeSidebarTab ?? 'objects');
@@ -22,7 +19,6 @@ export function CategoryToggle() {
 
   const currentId = activeSidebarTab === 'textures' ? 'textures' : activeCategory;
   const currentIndex = CATEGORIES.findIndex((c) => c.id === currentId);
-  const currentLabel = CATEGORIES[currentIndex]?.label ?? 'Shade Trees';
 
   const handleTap = () => {
     const nextIndex = (currentIndex + 1) % CATEGORIES.length;
@@ -38,10 +34,11 @@ export function CategoryToggle() {
   return (
     <button
       onClick={handleTap}
-      className="absolute right-32 bottom-[220px] z-20 h-11 px-4 flex items-center justify-center bg-black/30 backdrop-blur-sm text-white rounded-lg text-[11px] font-medium select-none border border-white/20 active:bg-black/50 transition-colors"
+      className="absolute right-32 bottom-[220px] z-20 w-11 h-11 flex items-center justify-center bg-black/30 backdrop-blur-sm text-white rounded-full select-none border border-white/20 active:bg-black/50 transition-colors"
       style={{ WebkitTouchCallout: 'none' }}
+      title="Next category"
     >
-      {currentLabel}
+      <RefreshCw size={18} />
     </button>
   );
 }
