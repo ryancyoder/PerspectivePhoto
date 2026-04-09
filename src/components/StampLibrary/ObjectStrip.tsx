@@ -1,16 +1,23 @@
 import { useCallback } from 'react';
-import { Plus, X, ClipboardPaste } from 'lucide-react';
+import { Plus, X, ClipboardPaste, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useProjectStore } from '../../store/useProjectStore';
 import { useCustomStampStore } from '../../store/useCustomStampStore';
 
-/**
- * Right-side single-column object strip — like Concepts app.
- * Shows thumbnails for the active category, vertically scrollable.
- * Upload button at top. Tap to select, tap photo to place.
- */
+const CATEGORIES = [
+  { id: 'shade-trees', label: 'Shade Trees' },
+  { id: 'ornamental-trees', label: 'Ornamental' },
+  { id: 'grasses', label: 'Grasses' },
+  { id: 'shrubs', label: 'Shrubs' },
+  { id: 'perennials', label: 'Perennials' },
+  { id: 'ground-cover', label: 'Ground Cover' },
+  { id: 'textures', label: 'Surfaces' },
+];
+
 export function ObjectStrip() {
   const activeCategory = useProjectStore((s) => s.activeCategory ?? 'shade-trees');
   const activeSidebarTab = useProjectStore((s) => s.activeSidebarTab ?? 'objects');
+  const setActiveCategory = useProjectStore((s) => s.setActiveCategory);
+  const setActiveSidebarTab = useProjectStore((s) => s.setActiveSidebarTab);
   const pendingStampAssetId = useProjectStore((s) => s.pendingStampAssetId);
   const setPendingStamp = useProjectStore((s) => s.setPendingStamp);
   const setPlanSelection = useProjectStore((s) => s.setPlanSelection);
@@ -19,16 +26,31 @@ export function ObjectStrip() {
   const customStamps = useCustomStampStore((s) => s.stamps);
   const removeStamp = useCustomStampStore((s) => s.removeStamp);
 
-  // Filter for current mode
   const isTextures = activeSidebarTab === 'textures';
   const items = isTextures
     ? customStamps.filter((s) => s.category === 'textures' || s.name.startsWith('tex-'))
     : customStamps.filter((s) => s.category === activeCategory && !s.name.startsWith('tex-'));
 
+  // Category cycling
+  const currentId = isTextures ? 'textures' : activeCategory;
+  const currentIndex = CATEGORIES.findIndex((c) => c.id === currentId);
+  const currentLabel = CATEGORIES[currentIndex]?.label ?? 'Shade Trees';
+
+  const cycleCategory = useCallback((dir: 1 | -1) => {
+    const nextIndex = (currentIndex + dir + CATEGORIES.length) % CATEGORIES.length;
+    const next = CATEGORIES[nextIndex];
+    if (next.id === 'textures') {
+      setActiveSidebarTab('textures');
+    } else {
+      setActiveSidebarTab('objects');
+      setActiveCategory(next.id);
+    }
+  }, [currentIndex, setActiveCategory, setActiveSidebarTab]);
+
   const handlePaste = useCallback(async () => {
     try {
-      const items = await navigator.clipboard.read();
-      for (const item of items) {
+      const clipItems = await navigator.clipboard.read();
+      for (const item of clipItems) {
         const imageType = item.types.find((t) => t.startsWith('image/'));
         if (imageType) {
           const blob = await item.getType(imageType);
@@ -72,11 +94,9 @@ export function ObjectStrip() {
 
   const handleTap = useCallback((stamp: typeof items[0]) => {
     if (isTextures) {
-      // Textures go through skew flow
       setPlanSelection(stamp.dataUrl, stamp.naturalWidth, stamp.naturalHeight);
       setViewMode('photo');
     } else {
-      // Plants go through stamp placement
       setPendingStamp(pendingStampAssetId === stamp.id ? null : stamp.id);
     }
   }, [isTextures, pendingStampAssetId, setPendingStamp, setPlanSelection, setViewMode]);
@@ -87,30 +107,51 @@ export function ObjectStrip() {
       style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none' }}
     >
       {/* Upload + Paste side by side */}
-      <div className="flex gap-1 px-1.5 mt-1 mb-1 w-full">
+      <div className="flex gap-1 px-1.5 mt-1 w-full">
         <button
           onClick={handleUpload}
-          className="flex-1 h-11 flex items-center justify-center rounded-lg bg-black/30 backdrop-blur-sm text-white border border-white/20 active:bg-black/50 transition-colors shrink-0"
+          className="flex-1 h-11 flex items-center justify-center rounded-lg bg-black/30 backdrop-blur-sm text-white border border-white/20 active:bg-black/50 transition-colors"
           title="Upload"
         >
           <Plus size={20} />
         </button>
         <button
           onClick={handlePaste}
-          className="flex-1 h-11 flex items-center justify-center rounded-lg bg-black/30 backdrop-blur-sm text-white border border-white/20 active:bg-black/50 transition-colors shrink-0"
-          title="Paste from clipboard"
+          className="flex-1 h-11 flex items-center justify-center rounded-lg bg-black/30 backdrop-blur-sm text-white border border-white/20 active:bg-black/50 transition-colors"
+          title="Paste"
         >
           <ClipboardPaste size={18} />
         </button>
       </div>
 
-      <div className="w-24 h-px bg-gray-200 mb-1" />
+      {/* Category label with prev/next arrows */}
+      <div className="flex items-center w-full px-1 mt-1 mb-1">
+        <button
+          onClick={() => cycleCategory(-1)}
+          className="w-7 h-11 flex items-center justify-center text-gray-400 active:text-gray-700 shrink-0"
+        >
+          <ChevronLeft size={16} />
+        </button>
+        <div className="flex-1 h-11 flex items-center justify-center bg-black/30 backdrop-blur-sm rounded-lg border border-white/20">
+          <span className="text-[10px] font-semibold text-white text-center leading-tight">
+            {currentLabel}
+          </span>
+        </div>
+        <button
+          onClick={() => cycleCategory(1)}
+          className="w-7 h-11 flex items-center justify-center text-gray-400 active:text-gray-700 shrink-0"
+        >
+          <ChevronRight size={16} />
+        </button>
+      </div>
+
+      <div className="w-24 h-px bg-gray-200" />
 
       {/* Scrollable object list */}
-      <div className="flex-1 overflow-y-auto w-full flex flex-col items-center gap-1 pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
+      <div className="flex-1 overflow-y-auto w-full flex flex-col items-center gap-1 py-1" style={{ WebkitOverflowScrolling: 'touch' }}>
         {items.length === 0 && (
           <div className="flex-1 flex items-center justify-center">
-            <p className="text-[9px] text-gray-300 text-center px-1 rotate-0">
+            <p className="text-[9px] text-gray-300 text-center px-2">
               Upload {isTextures ? 'textures' : 'objects'}
             </p>
           </div>
@@ -129,7 +170,6 @@ export function ObjectStrip() {
                 className="w-full h-full rounded-lg bg-contain bg-center bg-no-repeat"
                 style={{ backgroundImage: `url(${stamp.dataUrl})` }}
               />
-              {/* Delete button */}
               <button
                 onClick={(e) => { e.stopPropagation(); removeStamp(stamp.id); }}
                 className="absolute -top-1 -left-1 w-4 h-4 flex items-center justify-center rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity"

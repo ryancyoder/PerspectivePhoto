@@ -6,7 +6,6 @@ import { EditorCanvas } from './components/Canvas/EditorCanvas';
 import { PlanViewCanvas } from './components/PlanView/PlanViewCanvas';
 import { SizeSlider } from './components/GestureControls/SizeSlider';
 import { MovementJoystick } from './components/GestureControls/MovementJoystick';
-import { CategoryToggle } from './components/GestureControls/CategoryToggle';
 import { useProjectStore } from './store/useProjectStore';
 
 export default function App() {
@@ -23,7 +22,6 @@ export default function App() {
           <PlanViewCanvas />
         )}
         <SizeSlider />
-        <CategoryToggle />
         <MovementJoystick />
         <ObjectStrip />
       </div>
