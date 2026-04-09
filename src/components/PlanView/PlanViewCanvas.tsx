@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useCallback } from 'react';
 import { Stage, Layer, Image as KonvaImage, Line, Circle, Rect, Text } from 'react-konva';
 import Konva from 'konva';
 import { useProjectStore } from '../../store/useProjectStore';
+import { usePlanSymbolStore } from '../../store/useCustomStampStore';
 import { PlanStamp } from './PlanStamp';
 import { DuplicateStampMode } from '../Canvas/EditorCanvas';
 import type { Point2D } from '../../types';
@@ -34,6 +35,26 @@ export function PlanViewCanvas() {
   const placingPointerId = useRef<number | null>(null);
   // Cache the source stamp for stamp-gun mode so it doesn't change between taps
   const stampGunSource = useRef<{ assetId: string; manualScale: number; rotation: number; flipX: boolean; opacity: number } | null>(null);
+
+  // Sort plan stamps by category render order:
+  // ground-cover (bottom) → perennials → shrubs → grasses → columnar → ornamental → shade-trees (top)
+  const CATEGORY_ORDER: Record<string, number> = {
+    'ground-cover': 0,
+    'perennials': 1,
+    'shrubs': 2,
+    'grasses': 3,
+    'columnar': 4,
+    'ornamental-trees': 5,
+    'shade-trees': 6,
+    'custom': 3,
+    'textures': -1,
+  };
+  const planSymbolsStore = usePlanSymbolStore.getState();
+  const sortedPlanStamps = [...planStamps].sort((a, b) => {
+    const catA = planSymbolsStore.getSymbol(a.assetId)?.category ?? 'custom';
+    const catB = planSymbolsStore.getSymbol(b.assetId)?.category ?? 'custom';
+    return (CATEGORY_ORDER[catA] ?? 3) - (CATEGORY_ORDER[catB] ?? 3);
+  });
 
   useEffect(() => {
     if (!planView.image) { setPlanImage(null); return; }
@@ -298,9 +319,9 @@ export function PlanViewCanvas() {
             )}
           </Layer>
 
-          {/* Placed plan symbols */}
+          {/* Placed plan symbols — sorted by category layer order */}
           <Layer>
-            {planStamps.map((stamp) => (
+            {sortedPlanStamps.map((stamp) => (
               <PlanStamp key={stamp.id} stamp={stamp} isSelected={stamp.id === selectedStampId} />
             ))}
           </Layer>
