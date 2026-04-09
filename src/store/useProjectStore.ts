@@ -23,10 +23,12 @@ interface ProjectState {
   // Perspective
   perspective: PerspectiveConfig;
 
-  // Stamps
+  // Stamps (perspective view)
   stamps: PlacedStamp[];
+  // Plan stamps (plan view — separate coordinate space)
+  planStamps: PlacedStamp[];
   selectedStampId: string | null;
-  pendingStampAssetId: string | null; // stamp waiting to be placed on canvas
+  pendingStampAssetId: string | null;
 
   // Tool
   toolMode: ToolMode;
@@ -60,6 +62,9 @@ interface ProjectState {
   setHorizonY: (y: number) => void;
 
   addStamp: (assetId: string, x: number, y: number) => void;
+  addPlanStamp: (assetId: string, x: number, y: number) => void;
+  updatePlanStamp: (id: string, update: Partial<PlacedStamp>) => void;
+  removePlanStamp: (id: string) => void;
   updateStamp: (id: string, update: Partial<PlacedStamp>) => void;
   removeStamp: (id: string) => void;
   selectStamp: (id: string | null) => void;
@@ -106,6 +111,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   perspective: createDefaultPerspective(1024, 768),
   stamps: [],
+  planStamps: [],
   selectedStampId: null,
   pendingStampAssetId: null,
   toolMode: 'select',
@@ -185,6 +191,36 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       propertiesTrayOpen: true,
     }));
   },
+
+  addPlanStamp: (assetId, x, y) => {
+    const stamp: PlacedStamp = {
+      id: uuid(),
+      assetId,
+      x,
+      y,
+      manualScale: 1,
+      rotation: 0,
+      flipX: false,
+      opacity: 1,
+      zIndex: get().planStamps.length,
+    };
+    set((state) => ({
+      planStamps: [...state.planStamps, stamp],
+      selectedStampId: stamp.id,
+      pendingStampAssetId: null,
+    }));
+  },
+
+  updatePlanStamp: (id, update) =>
+    set((state) => ({
+      planStamps: state.planStamps.map((s) => (s.id === id ? { ...s, ...update } : s)),
+    })),
+
+  removePlanStamp: (id) =>
+    set((state) => ({
+      planStamps: state.planStamps.filter((s) => s.id !== id),
+      selectedStampId: state.selectedStampId === id ? null : state.selectedStampId,
+    })),
 
   updateStamp: (id, update) =>
     set((state) => ({
