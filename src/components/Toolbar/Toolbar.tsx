@@ -11,6 +11,7 @@ import {
   Eraser,
   Image as ImageIcon,
   LayoutGrid,
+  Stamp,
 } from 'lucide-react';
 import Konva from 'konva';
 import { useProjectStore } from '../../store/useProjectStore';
@@ -28,6 +29,10 @@ export function Toolbar({ stageRef }: ToolbarProps) {
   const setViewMode = useProjectStore((s) => s.setViewMode);
   const setBackgroundImage = useProjectStore((s) => s.setBackgroundImage);
   const setPlanImage = useProjectStore((s) => s.setPlanImage);
+  const hasOverlay = !!useProjectStore((s) => s.planView.selectionImage);
+  const flattenOverlay = useProjectStore((s) => s.flattenOverlay);
+  const backgroundWidth = useProjectStore((s) => s.backgroundWidth);
+  const backgroundHeight = useProjectStore((s) => s.backgroundHeight);
   const selectedStampId = useProjectStore((s) => s.selectedStampId);
   const removeStamp = useProjectStore((s) => s.removeStamp);
   const undo = useProjectStore((s) => s.undo);
@@ -75,6 +80,34 @@ export function Toolbar({ stageRef }: ToolbarProps) {
     };
     input.click();
   }, [setPlanImage, setViewMode]);
+
+  const handleFlatten = useCallback(() => {
+    const stage = stageRef.current;
+    if (!stage || !backgroundWidth || !backgroundHeight) return;
+
+    // Render just the background + overlay layers (no stamps, no guides)
+    const layers = stage.getLayers();
+    // Hide stamps layer (index 2) and guides layer (index 3)
+    if (layers[2]) layers[2].visible(false);
+    if (layers[3]) layers[3].visible(false);
+
+    // Also hide corner handles by temporarily setting overlay to not show them
+    // The export renders at native resolution
+    setTimeout(() => {
+      const dataUrl = stage.toDataURL({
+        x: 0,
+        y: 0,
+        width: backgroundWidth,
+        height: backgroundHeight,
+        pixelRatio: 1,
+      });
+      flattenOverlay(dataUrl);
+
+      // Restore layers
+      if (layers[2]) layers[2].visible(true);
+      if (layers[3]) layers[3].visible(true);
+    }, 50);
+  }, [stageRef, backgroundWidth, backgroundHeight, flattenOverlay]);
 
   const handleExport = useCallback(() => {
     const stage = stageRef.current;
@@ -188,6 +221,13 @@ export function Toolbar({ stageRef }: ToolbarProps) {
       <span className="text-sm font-semibold text-gray-500 tracking-wide mr-2 hidden sm:block">
         PerspectivePhoto
       </span>
+
+      {/* Paste/Flatten overlay */}
+      {hasOverlay && viewMode === 'photo' && (
+        <ToolButton onClick={handleFlatten} label="Paste Overlay" accent>
+          <Stamp size={20} />
+        </ToolButton>
+      )}
 
       {/* Export */}
       <ToolButton onClick={handleExport} label="Export PNG" accent>

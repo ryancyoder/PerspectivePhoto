@@ -63,6 +63,7 @@ interface ProjectState {
   setPlanOpacity: (opacity: number) => void;
   setPlanVisible: (visible: boolean) => void;
   setPlanEraseMask: (mask: string | null) => void;
+  flattenOverlay: (compositeDataUrl: string) => void;
   toggleSidebar: () => void;
   setPropertiesTrayOpen: (open: boolean) => void;
 
@@ -260,6 +261,19 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   setPlanEraseMask: (mask) =>
     set((state) => ({
       planView: { ...state.planView, eraseMask: mask },
+    })),
+
+  flattenOverlay: (compositeDataUrl) =>
+    set((state) => ({
+      backgroundImage: compositeDataUrl,
+      planView: {
+        ...state.planView,
+        selectionImage: null,
+        selectionWidth: 0,
+        selectionHeight: 0,
+        corners: null,
+        eraseMask: null,
+      },
     })),
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
   setPropertiesTrayOpen: (open) => set({ propertiesTrayOpen: open }),

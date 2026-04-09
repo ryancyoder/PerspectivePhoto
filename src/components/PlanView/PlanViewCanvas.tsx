@@ -1,12 +1,13 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { Stage, Layer, Image as KonvaImage, Rect } from 'react-konva';
+import { Stage, Layer, Image as KonvaImage, Line, Circle, Rect, Text } from 'react-konva';
 import Konva from 'konva';
 import { useProjectStore } from '../../store/useProjectStore';
+import type { Point2D } from '../../types';
 
 /**
- * Plan view — shows the uploaded plan image.
- * User draws a selection rectangle, which gets cropped and sent
- * to the photo view as a warpable overlay.
+ * Plan view — user taps to draw a multi-point polygon selection,
+ * then the selected region gets cropped (with transparency outside)
+ * and sent to the photo view as a warpable overlay.
  */
 export function PlanViewCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -22,10 +23,9 @@ export function PlanViewCanvas() {
   const [stageScale, setStageScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
 
-  // Selection rectangle state
-  const [selecting, setSelecting] = useState(false);
-  const [selStart, setSelStart] = useState({ x: 0, y: 0 });
-  const [selEnd, setSelEnd] = useState({ x: 0, y: 0 });
+  // Polygon points (plan image coordinates)
+  const [points, setPoints] = useState<Point2D[]>([]);
+  const [isClosed, setIsClosed] = useState(false);
 
   // Load plan image
   useEffect(() => {
@@ -59,72 +59,136 @@ export function PlanViewCanvas() {
     return () => observer.disconnect();
   }, [planView.imageWidth, planView.imageHeight, setCanvasSize]);
 
-  // Convert screen position to plan image coordinates
-  const screenToPlan = useCallback((screenX: number, screenY: number) => {
+  // Get plan coordinates from pointer
+  const getPlanPos = useCallback(() => {
+    const stage = stageRef.current;
+    if (!stage) return null;
+    const pos = stage.getPointerPosition();
+    if (!pos) return null;
     return {
-      x: (screenX - stagePos.x) / stageScale,
-      y: (screenY - stagePos.y) / stageScale,
+      x: (pos.x - stagePos.x) / stageScale,
+      y: (pos.y - stagePos.y) / stageScale,
     };
   }, [stagePos, stageScale]);
 
-  // Selection handlers
-  const handleMouseDown = useCallback((_e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
-    const stage = stageRef.current;
-    if (!stage) return;
-    const pos = stage.getPointerPosition();
+  // Tap to add polygon point
+  const handleTap = useCallback(() => {
+    if (isClosed) return;
+    const pos = getPlanPos();
     if (!pos) return;
-    const planPos = screenToPlan(pos.x, pos.y);
-    setSelStart(planPos);
-    setSelEnd(planPos);
-    setSelecting(true);
-  }, [screenToPlan]);
 
-  const handleMouseMove = useCallback((_e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
-    if (!selecting) return;
-    const stage = stageRef.current;
-    if (!stage) return;
-    const pos = stage.getPointerPosition();
-    if (!pos) return;
-    setSelEnd(screenToPlan(pos.x, pos.y));
-  }, [selecting, screenToPlan]);
+    // If tapping near the first point and we have 3+ points, close the polygon
+    if (points.length >= 3) {
+      const first = points[0];
+      const dist = Math.sqrt((pos.x - first.x) ** 2 + (pos.y - first.y) ** 2);
+      if (dist < 25 / stageScale) {
+        closeAndCrop();
+        return;
+      }
+    }
 
-  const handleMouseUp = useCallback(() => {
-    if (!selecting || !planImage) return;
-    setSelecting(false);
+    setPoints((prev) => [...prev, pos]);
+  }, [isClosed, getPlanPos, points, stageScale]);
 
-    // Compute the selection rectangle (normalize for negative drag directions)
-    const x = Math.max(0, Math.min(selStart.x, selEnd.x));
-    const y = Math.max(0, Math.min(selStart.y, selEnd.y));
-    const w = Math.min(Math.abs(selEnd.x - selStart.x), planView.imageWidth - x);
-    const h = Math.min(Math.abs(selEnd.y - selStart.y), planView.imageHeight - y);
+  // Close the polygon and crop the selection
+  const closeAndCrop = useCallback(() => {
+    if (points.length < 3 || !planImage) return;
+    setIsClosed(true);
 
-    // Ignore tiny selections (accidental taps)
-    if (w < 20 || h < 20) return;
+    // Compute bounding box of the polygon
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of points) {
+      minX = Math.min(minX, p.x);
+      minY = Math.min(minY, p.y);
+      maxX = Math.max(maxX, p.x);
+      maxY = Math.max(maxY, p.y);
+    }
 
-    // Crop the selection to a canvas and store it
+    // Clamp to image bounds
+    minX = Math.max(0, Math.floor(minX));
+    minY = Math.max(0, Math.floor(minY));
+    maxX = Math.min(planView.imageWidth, Math.ceil(maxX));
+    maxY = Math.min(planView.imageHeight, Math.ceil(maxY));
+
+    const w = maxX - minX;
+    const h = maxY - minY;
+    if (w < 10 || h < 10) return;
+
+    // Crop with polygon mask — only the inside is visible, outside is transparent
     const cropCanvas = document.createElement('canvas');
     cropCanvas.width = w;
     cropCanvas.height = h;
     const ctx = cropCanvas.getContext('2d')!;
-    ctx.drawImage(planImage, x, y, w, h, 0, 0, w, h);
+
+    // Draw polygon clip path (offset by bounding box origin)
+    ctx.beginPath();
+    ctx.moveTo(points[0].x - minX, points[0].y - minY);
+    for (let i = 1; i < points.length; i++) {
+      ctx.lineTo(points[i].x - minX, points[i].y - minY);
+    }
+    ctx.closePath();
+    ctx.clip();
+
+    // Draw the plan image within the clip
+    ctx.drawImage(planImage, minX, minY, w, h, 0, 0, w, h);
 
     const dataUrl = cropCanvas.toDataURL('image/png');
     setPlanSelection(dataUrl, w, h);
-  }, [selecting, selStart, selEnd, planImage, planView.imageWidth, planView.imageHeight, setPlanSelection]);
 
-  // Selection rect dimensions for rendering
-  const selX = Math.min(selStart.x, selEnd.x);
-  const selY = Math.min(selStart.y, selEnd.y);
-  const selW = Math.abs(selEnd.x - selStart.x);
-  const selH = Math.abs(selEnd.y - selStart.y);
+    // Reset for next selection
+    setTimeout(() => {
+      setPoints([]);
+      setIsClosed(false);
+    }, 300);
+  }, [points, planImage, planView.imageWidth, planView.imageHeight, setPlanSelection]);
+
+  // Clear selection to start over
+  const handleClear = useCallback(() => {
+    setPoints([]);
+    setIsClosed(false);
+  }, []);
+
+  // Flatten points array for Konva Line
+  const flatPoints = points.flatMap((p) => [p.x, p.y]);
 
   return (
     <div ref={containerRef} className="flex-1 bg-gray-50 relative overflow-hidden">
+      {/* Instructions */}
       <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
         <div className="bg-emerald-500 text-white px-3 py-1 rounded-full text-xs font-medium">
-          Draw a rectangle to select an area to overlay on the photo
+          {points.length === 0
+            ? 'Tap to draw a selection polygon'
+            : points.length < 3
+            ? `Tap to add points (${points.length}/3 minimum)`
+            : 'Tap first point to close, or keep adding points'}
         </div>
       </div>
+
+      {/* Clear / Undo buttons */}
+      {points.length > 0 && !isClosed && (
+        <div className="absolute top-10 left-1/2 -translate-x-1/2 z-10 flex gap-2">
+          <button
+            onClick={handleClear}
+            className="px-3 py-1 bg-red-500 text-white rounded-full text-xs font-medium shadow"
+          >
+            Clear
+          </button>
+          <button
+            onClick={() => setPoints((p) => p.slice(0, -1))}
+            className="px-3 py-1 bg-gray-500 text-white rounded-full text-xs font-medium shadow"
+          >
+            Undo Point
+          </button>
+          {points.length >= 3 && (
+            <button
+              onClick={closeAndCrop}
+              className="px-3 py-1 bg-blue-500 text-white rounded-full text-xs font-medium shadow"
+            >
+              Done
+            </button>
+          )}
+        </div>
+      )}
 
       {!planView.image ? (
         <div className="absolute inset-0 flex items-center justify-center">
@@ -143,12 +207,8 @@ export function PlanViewCanvas() {
           x={stagePos.x}
           y={stagePos.y}
           draggable={false}
-          onMouseDown={handleMouseDown}
-          onTouchStart={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onTouchMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onTouchEnd={handleMouseUp}
+          onClick={handleTap}
+          onTap={handleTap}
         >
           {/* Plan image */}
           <Layer listening={false}>
@@ -163,47 +223,59 @@ export function PlanViewCanvas() {
             )}
           </Layer>
 
-          {/* Selection overlay */}
+          {/* Selection polygon overlay */}
           <Layer listening={false}>
-            {/* Dim the non-selected area */}
-            {selecting && selW > 5 && selH > 5 && (
-              <>
-                <Rect x={0} y={0} width={planView.imageWidth} height={planView.imageHeight} fill="rgba(0,0,0,0.3)" />
-                {/* Clear the selected area */}
-                <Rect x={selX} y={selY} width={selW} height={selH} fill="#fafafa" />
-                {/* Re-draw the plan image in the selected area via clip (simulated by overlay) */}
-              </>
-            )}
-
-            {/* Selection rectangle border */}
-            {selecting && selW > 5 && selH > 5 && (
-              <Rect
-                x={selX}
-                y={selY}
-                width={selW}
-                height={selH}
-                stroke="#3b82f6"
-                strokeWidth={3}
-                dash={[8, 4]}
-                fill="transparent"
-              />
-            )}
-
-            {/* Previous selection indicator */}
-            {planView.selectionImage && !selecting && (
+            {/* Dim overlay when polygon has points */}
+            {points.length > 0 && (
               <Rect
                 x={0}
                 y={0}
                 width={planView.imageWidth}
                 height={planView.imageHeight}
-                fill="transparent"
+                fill="rgba(0,0,0,0.25)"
+              />
+            )}
+
+            {/* Polygon lines */}
+            {points.length >= 2 && (
+              <Line
+                points={flatPoints}
+                stroke="#3b82f6"
+                strokeWidth={3 / stageScale}
+                closed={isClosed}
+                fill={isClosed ? 'rgba(59,130,246,0.15)' : undefined}
+              />
+            )}
+
+            {/* Point markers */}
+            {points.map((p, i) => (
+              <Circle
+                key={i}
+                x={p.x}
+                y={p.y}
+                radius={i === 0 && points.length >= 3 ? 12 / stageScale : 6 / stageScale}
+                fill={i === 0 ? '#22c55e' : '#3b82f6'}
+                stroke="#fff"
+                strokeWidth={2 / stageScale}
+              />
+            ))}
+
+            {/* "Close here" label on first point */}
+            {points.length >= 3 && !isClosed && (
+              <Text
+                x={points[0].x + 14 / stageScale}
+                y={points[0].y - 8 / stageScale}
+                text="Tap to close"
+                fontSize={12 / stageScale}
+                fill="#22c55e"
+                fontStyle="bold"
               />
             )}
           </Layer>
         </Stage>
       )}
 
-      {planView.selectionImage && (
+      {planView.selectionImage && points.length === 0 && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-medium z-10 pointer-events-none">
           Selection sent to Photo view — switch to Photo to position it
         </div>
