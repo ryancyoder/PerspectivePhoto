@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Plus, X, ClipboardPaste, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, X, ClipboardPaste } from 'lucide-react';
 import { useProjectStore } from '../../store/useProjectStore';
 import { useCustomStampStore } from '../../store/useCustomStampStore';
 
@@ -16,8 +16,6 @@ const CATEGORIES = [
 export function ObjectStrip() {
   const activeCategory = useProjectStore((s) => s.activeCategory ?? 'shade-trees');
   const activeSidebarTab = useProjectStore((s) => s.activeSidebarTab ?? 'objects');
-  const setActiveCategory = useProjectStore((s) => s.setActiveCategory);
-  const setActiveSidebarTab = useProjectStore((s) => s.setActiveSidebarTab);
   const pendingStampAssetId = useProjectStore((s) => s.pendingStampAssetId);
   const setPendingStamp = useProjectStore((s) => s.setPendingStamp);
   const setPlanSelection = useProjectStore((s) => s.setPlanSelection);
@@ -31,21 +29,9 @@ export function ObjectStrip() {
     ? customStamps.filter((s) => s.category === 'textures' || s.name.startsWith('tex-'))
     : customStamps.filter((s) => s.category === activeCategory && !s.name.startsWith('tex-'));
 
-  // Category cycling
   const currentId = isTextures ? 'textures' : activeCategory;
   const currentIndex = CATEGORIES.findIndex((c) => c.id === currentId);
   const currentLabel = CATEGORIES[currentIndex]?.label ?? 'Shade Trees';
-
-  const cycleCategory = useCallback((dir: 1 | -1) => {
-    const nextIndex = (currentIndex + dir + CATEGORIES.length) % CATEGORIES.length;
-    const next = CATEGORIES[nextIndex];
-    if (next.id === 'textures') {
-      setActiveSidebarTab('textures');
-    } else {
-      setActiveSidebarTab('objects');
-      setActiveCategory(next.id);
-    }
-  }, [currentIndex, setActiveCategory, setActiveSidebarTab]);
 
   const handlePaste = useCallback(async () => {
     try {
@@ -124,25 +110,11 @@ export function ObjectStrip() {
         </button>
       </div>
 
-      {/* Category label with prev/next arrows */}
-      <div className="flex items-center w-full px-1 mt-1 mb-1">
-        <button
-          onClick={() => cycleCategory(-1)}
-          className="w-7 h-11 flex items-center justify-center text-gray-400 active:text-gray-700 shrink-0"
-        >
-          <ChevronLeft size={16} />
-        </button>
-        <div className="flex-1 h-11 flex items-center justify-center bg-black/30 backdrop-blur-sm rounded-lg border border-white/20">
-          <span className="text-[10px] font-semibold text-white text-center leading-tight">
-            {currentLabel}
-          </span>
+      {/* Category label */}
+      <div className="w-full px-1.5 mt-1 mb-1">
+        <div className="text-[10px] font-semibold text-gray-500 text-center uppercase tracking-wider">
+          {currentLabel}
         </div>
-        <button
-          onClick={() => cycleCategory(1)}
-          className="w-7 h-11 flex items-center justify-center text-gray-400 active:text-gray-700 shrink-0"
-        >
-          <ChevronRight size={16} />
-        </button>
       </div>
 
       <div className="w-24 h-px bg-gray-200" />
