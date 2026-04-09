@@ -3,6 +3,7 @@ import { Stage, Layer, Image as KonvaImage, Line, Circle, Rect, Text } from 'rea
 import Konva from 'konva';
 import { useProjectStore } from '../../store/useProjectStore';
 import { PlanStamp } from './PlanStamp';
+import { DuplicateStampMode } from '../Canvas/EditorCanvas';
 import type { Point2D } from '../../types';
 
 export function PlanViewCanvas() {
@@ -83,6 +84,33 @@ export function PlanViewCanvas() {
       if (!isOverCanvas(e)) return;
       const state = useProjectStore.getState();
       if (state.moveOnly) return;
+
+      // Stamp-gun mode — duplicate selected plan stamp at tap position
+      if (DuplicateStampMode.active) {
+        const pos = clientToCanvas(e.clientX, e.clientY);
+        if (!pos) return;
+        const srcStamp = state.planStamps.find((s) => s.id === state.selectedStampId);
+        if (!srcStamp) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        addPlanStamp(srcStamp.assetId, pos.x, pos.y);
+        const newId = useProjectStore.getState().selectedStampId;
+        if (newId) {
+          useProjectStore.getState().updatePlanStamp(newId, {
+            manualScale: srcStamp.manualScale,
+            rotation: srcStamp.rotation,
+            flipX: srcStamp.flipX,
+            opacity: srcStamp.opacity,
+          });
+          placingStampId.current = newId;
+          placingPointerId.current = e.pointerId;
+        }
+        return;
+      }
+
+      // Pending stamp placement
       if (!state.pendingStampAssetId) return;
 
       const pos = clientToCanvas(e.clientX, e.clientY);
