@@ -85,28 +85,44 @@ export function Toolbar({ stageRef }: ToolbarProps) {
     const stage = stageRef.current;
     if (!stage || !backgroundWidth || !backgroundHeight) return;
 
-    // Render just the background + overlay layers (no stamps, no guides)
+    // We need to render at native resolution. The stage is currently
+    // scaled to 2/3 for overlay positioning. Temporarily reset to 1:1,
+    // render, then restore.
+    const prevScaleX = stage.scaleX();
+    const prevScaleY = stage.scaleY();
+    const prevX = stage.x();
+    const prevY = stage.y();
+
+    stage.scaleX(1);
+    stage.scaleY(1);
+    stage.x(0);
+    stage.y(0);
+
+    // Hide stamps and guides layers — only keep background + overlay
     const layers = stage.getLayers();
-    // Hide stamps layer (index 2) and guides layer (index 3)
     if (layers[2]) layers[2].visible(false);
     if (layers[3]) layers[3].visible(false);
 
-    // Also hide corner handles by temporarily setting overlay to not show them
-    // The export renders at native resolution
-    setTimeout(() => {
-      const dataUrl = stage.toDataURL({
-        x: 0,
-        y: 0,
-        width: backgroundWidth,
-        height: backgroundHeight,
-        pixelRatio: 1,
-      });
-      flattenOverlay(dataUrl);
+    stage.draw();
 
-      // Restore layers
-      if (layers[2]) layers[2].visible(true);
-      if (layers[3]) layers[3].visible(true);
-    }, 50);
+    const dataUrl = stage.toDataURL({
+      x: 0,
+      y: 0,
+      width: backgroundWidth,
+      height: backgroundHeight,
+      pixelRatio: 1,
+    });
+
+    // Restore everything
+    stage.scaleX(prevScaleX);
+    stage.scaleY(prevScaleY);
+    stage.x(prevX);
+    stage.y(prevY);
+    if (layers[2]) layers[2].visible(true);
+    if (layers[3]) layers[3].visible(true);
+    stage.draw();
+
+    flattenOverlay(dataUrl);
   }, [stageRef, backgroundWidth, backgroundHeight, flattenOverlay]);
 
   const handleExport = useCallback(() => {
