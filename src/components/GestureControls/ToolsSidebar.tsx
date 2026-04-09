@@ -122,7 +122,39 @@ export function ToolsSidebar() {
         </button>
       </div>
 
+      {/* Move-only toggle */}
+      <MoveOnlyButton />
+
       <div className="flex-1" />
     </div>
+  );
+}
+
+function MoveOnlyButton() {
+  const moveOnly = useProjectStore((s) => s.moveOnly);
+  const setMoveOnly = useProjectStore((s) => s.setMoveOnly);
+
+  return (
+    <button
+      onClick={() => setMoveOnly(!moveOnly)}
+      className={`mt-2 w-20 h-9 rounded-full backdrop-blur-sm border flex items-center justify-center gap-1 transition-all select-none text-[10px] font-semibold ${
+        moveOnly
+          ? 'bg-amber-500 border-white text-white shadow-lg shadow-amber-500/50'
+          : 'bg-black/30 border-white/20 text-white'
+      }`}
+      style={{ WebkitTouchCallout: 'none' }}
+      title={moveOnly ? 'Move mode — tap to exit' : 'Enter move-only mode'}
+    >
+      {/* Move icon */}
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M5 9l-3 3 3 3" />
+        <path d="M9 5l3-3 3 3" />
+        <path d="M15 19l-3 3-3-3" />
+        <path d="M19 9l3 3-3 3" />
+        <line x1="2" y1="12" x2="22" y2="12" />
+        <line x1="12" y1="2" x2="12" y2="22" />
+      </svg>
+      {moveOnly ? 'MOVE' : 'Move'}
+    </button>
   );
 }

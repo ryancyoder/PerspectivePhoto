@@ -95,6 +95,9 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
 
       const state = useProjectStore.getState();
 
+      // Move-only mode — skip all placement
+      if (state.moveOnly) return;
+
       // Stamp-gun mode
       if (DuplicateStampMode.active) {
         const pos = clientToCanvas(e.clientX, e.clientY);

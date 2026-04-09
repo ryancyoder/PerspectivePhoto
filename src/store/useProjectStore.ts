@@ -26,6 +26,7 @@ interface ProjectState {
 
   // Tool
   toolMode: ToolMode;
+  moveOnly: boolean;
 
   // View
   viewMode: ViewMode;
@@ -58,6 +59,7 @@ interface ProjectState {
   setPendingStamp: (assetId: string | null) => void;
 
   setToolMode: (mode: ToolMode) => void;
+  setMoveOnly: (on: boolean) => void;
   setViewMode: (mode: ViewMode) => void;
   setPlanImage: (dataUrl: string, width: number, height: number) => void;
   setPlanSelection: (dataUrl: string, width: number, height: number) => void;
@@ -95,6 +97,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   selectedStampId: null,
   pendingStampAssetId: null,
   toolMode: 'select',
+  moveOnly: false,
   viewMode: 'photo',
   planView: {
     image: null,
@@ -205,6 +208,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   setPendingStamp: (assetId) => set({ pendingStampAssetId: assetId, selectedStampId: null }),
 
   setToolMode: (mode) => set({ toolMode: mode, selectedStampId: null, pendingStampAssetId: null }),
+  setMoveOnly: (on) => set({ moveOnly: on, pendingStampAssetId: null }),
   setViewMode: (mode) => set({ viewMode: mode }),
 
   setPlanImage: (dataUrl, width, height) =>
