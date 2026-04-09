@@ -125,7 +125,51 @@ export function ToolsSidebar() {
       {/* Move-only toggle */}
       <MoveOnlyButton />
 
+      {/* Undo / Redo */}
+      <UndoRedoButtons />
+
       <div className="flex-1" />
+    </div>
+  );
+}
+
+function UndoRedoButtons() {
+  const undo = useProjectStore((s) => s.undo);
+  const redo = useProjectStore((s) => s.redo);
+  const historyIndex = useProjectStore((s) => s.historyIndex);
+  const historyLength = useProjectStore((s) => s.history.length);
+
+  const canUndo = historyIndex >= 0;
+  const canRedo = historyIndex < historyLength - 1;
+
+  return (
+    <div className="flex gap-1 mt-2">
+      <button
+        onClick={undo}
+        disabled={!canUndo}
+        className={`w-11 h-11 rounded-full backdrop-blur-sm border flex items-center justify-center transition-colors select-none ${
+          canUndo ? 'bg-black/30 border-white/20 active:bg-blue-500' : 'bg-gray-200 border-gray-300 opacity-30'
+        }`}
+        title="Undo"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 7v6h6" />
+          <path d="M3 13a9 9 0 0 1 15.36-6.36" />
+        </svg>
+      </button>
+      <button
+        onClick={redo}
+        disabled={!canRedo}
+        className={`w-11 h-11 rounded-full backdrop-blur-sm border flex items-center justify-center transition-colors select-none ${
+          canRedo ? 'bg-black/30 border-white/20 active:bg-blue-500' : 'bg-gray-200 border-gray-300 opacity-30'
+        }`}
+        title="Redo"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 7v6h-6" />
+          <path d="M21 13a9 9 0 0 0-15.36-6.36" />
+        </svg>
+      </button>
     </div>
   );
 }
