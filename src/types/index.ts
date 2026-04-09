@@ -1,4 +1,4 @@
-export type StampCategory = 'trees' | 'shrubs' | 'flowers' | 'hardscape' | 'textures' | 'custom';
+export type StampCategory = 'shade-trees' | 'ornamental-trees' | 'grasses' | 'shrubs' | 'perennials' | 'ground-cover' | 'textures' | 'custom';
 
 export type ToolMode = 'select' | 'horizon' | 'calibrate' | 'eraser' | 'pan';
 
@@ -31,7 +31,8 @@ export interface StampAsset {
 export interface CustomStamp {
   id: string;
   name: string;
-  dataUrl: string;       // base64 PNG data URL
+  category: StampCategory;  // which category this belongs to
+  dataUrl: string;           // base64 PNG data URL
   naturalWidth: number;
   naturalHeight: number;
   createdAt: number;

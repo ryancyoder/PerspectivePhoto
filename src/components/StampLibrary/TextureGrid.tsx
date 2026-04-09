@@ -11,7 +11,7 @@ export function TextureGrid() {
   const removeCustomStamp = useCustomStampStore((s) => s.removeStamp);
 
   // Filter custom stamps that are textures (name starts with "tex-")
-  const customTextures = customStamps.filter(s => s.name.startsWith('tex-'));
+  const customTextures = customStamps.filter(s => s.category === 'textures' || s.name.startsWith('tex-'));
 
   const handleSelectBuiltin = (textureId: string) => {
     const dataUrl = renderTextureToDataUrl(textureId, 3);
@@ -44,7 +44,7 @@ export function TextureGrid() {
           img.onload = () => {
             const name = 'tex-' + file.name.replace(/\.[^.]+$/, '');
             useCustomStampStore.getState().addStampFromDataUrl(
-              name, dataUrl, img.naturalWidth, img.naturalHeight
+              name, dataUrl, img.naturalWidth, img.naturalHeight, 'textures'
             );
           };
           img.src = dataUrl;
@@ -69,7 +69,7 @@ export function TextureGrid() {
             img.onload = () => {
               useCustomStampStore.getState().addStampFromDataUrl(
                 `tex-Pasted ${new Date().toLocaleTimeString()}`,
-                dataUrl, img.naturalWidth, img.naturalHeight
+                dataUrl, img.naturalWidth, img.naturalHeight, 'textures'
               );
             };
             img.src = dataUrl;

@@ -33,6 +33,8 @@ interface ProjectState {
 
   // Sidebar
   sidebarCollapsed: boolean;
+  activeCategory: string;
+  activeSidebarTab: string;
 
   // Properties tray
   propertiesTrayOpen: boolean;
@@ -65,6 +67,8 @@ interface ProjectState {
   setPlanEraseMask: (mask: string | null) => void;
   flattenOverlay: (compositeDataUrl: string) => void;
   toggleSidebar: () => void;
+  setActiveCategory: (cat: string) => void;
+  setActiveSidebarTab: (tab: string) => void;
   setPropertiesTrayOpen: (open: boolean) => void;
 
   undo: () => void;
@@ -105,6 +109,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     visible: true,
   },
   sidebarCollapsed: false,
+  activeCategory: 'shade-trees',
+  activeSidebarTab: 'objects',
   propertiesTrayOpen: false,
 
   history: [],
@@ -276,6 +282,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       },
     })),
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+  setActiveCategory: (cat) => set({ activeCategory: cat }),
+  setActiveSidebarTab: (tab) => set({ activeSidebarTab: tab }),
   setPropertiesTrayOpen: (open) => set({ propertiesTrayOpen: open }),
 
   pushHistory: () =>
