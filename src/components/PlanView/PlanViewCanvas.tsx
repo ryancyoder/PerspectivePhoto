@@ -25,10 +25,19 @@ export function PlanViewCanvas() {
   const [stageScale, setStageScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
 
+  const planPixelsPerFoot = useProjectStore((s) => s.planPixelsPerFoot);
+  const setPlanPixelsPerFoot = useProjectStore((s) => s.setPlanPixelsPerFoot);
+
   // Polygon selection state
   const [polygonMode, setPolygonMode] = useState(false);
   const [points, setPoints] = useState<Point2D[]>([]);
   const [isClosed, setIsClosed] = useState(false);
+
+  // Scale tool state
+  const [scaleMode, setScaleMode] = useState(false);
+  const [scalePoint1, setScalePoint1] = useState<Point2D | null>(null);
+  const [scalePoint2, setScalePoint2] = useState<Point2D | null>(null);
+  const [scaleInput, setScaleInput] = useState('');
 
   // Track stamp being placed (press-drag-release)
   const placingStampId = useRef<string | null>(null);
@@ -208,6 +217,18 @@ export function PlanViewCanvas() {
     const state = useProjectStore.getState();
     if (state.pendingStampAssetId) return;
 
+    // Scale mode — tap two points
+    if (scaleMode) {
+      const pos = getPlanPos();
+      if (!pos) return;
+      if (!scalePoint1) {
+        setScalePoint1(pos);
+      } else if (!scalePoint2) {
+        setScalePoint2(pos);
+      }
+      return;
+    }
+
     // Only do polygon selection when polygon mode is active
     if (polygonMode && !isClosed && planView.image) {
       const pos = getPlanPos();
@@ -274,13 +295,28 @@ export function PlanViewCanvas() {
               : 'Tap first point to close, or keep adding'}
           </div>
         )}
+        {scaleMode && (
+          <div className="bg-purple-500 text-white px-3 py-1 rounded-full text-xs font-medium pointer-events-none">
+            {!scalePoint1 ? 'Tap the first point of a known dimension'
+              : !scalePoint2 ? 'Tap the second point'
+              : 'Enter the distance below'}
+          </div>
+        )}
         <button
-          onClick={() => { setPolygonMode(!polygonMode); setPoints([]); setIsClosed(false); }}
+          onClick={() => { setPolygonMode(!polygonMode); setScaleMode(false); setPoints([]); setIsClosed(false); }}
           className={`px-3 py-1 rounded-full text-xs font-medium shadow transition-colors ${
             polygonMode ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 border border-gray-300'
           }`}
         >
-          {polygonMode ? 'Exit Polygon' : 'Polygon Select'}
+          {polygonMode ? 'Exit Polygon' : 'Polygon'}
+        </button>
+        <button
+          onClick={() => { setScaleMode(!scaleMode); setPolygonMode(false); setScalePoint1(null); setScalePoint2(null); setScaleInput(''); }}
+          className={`px-3 py-1 rounded-full text-xs font-medium shadow transition-colors ${
+            scaleMode ? 'bg-purple-500 text-white' : 'bg-white text-gray-600 border border-gray-300'
+          }`}
+        >
+          {scaleMode ? 'Exit Scale' : planPixelsPerFoot ? `Scale: ${Math.round(planPixelsPerFoot)}px/ft` : 'Set Scale'}
         </button>
       </div>
 
@@ -289,6 +325,45 @@ export function PlanViewCanvas() {
           <button onClick={() => { setPoints([]); setIsClosed(false); }} className="px-3 py-1 bg-red-500 text-white rounded-full text-xs font-medium shadow">Clear</button>
           <button onClick={() => setPoints((p) => p.slice(0, -1))} className="px-3 py-1 bg-gray-500 text-white rounded-full text-xs font-medium shadow">Undo Point</button>
           {points.length >= 3 && <button onClick={closeAndCrop} className="px-3 py-1 bg-blue-500 text-white rounded-full text-xs font-medium shadow">Done</button>}
+        </div>
+      )}
+
+      {/* Scale distance input */}
+      {scaleMode && scalePoint1 && scalePoint2 && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 bg-white rounded-xl shadow-xl border border-gray-200 p-3 w-64 select-none" style={{ WebkitTouchCallout: 'none' }}>
+          <p className="text-xs text-gray-600 mb-2">Enter the real-world distance between the two points:</p>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              inputMode="decimal"
+              value={scaleInput}
+              onChange={(e) => setScaleInput(e.target.value)}
+              placeholder="e.g. 20"
+              className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+              autoFocus
+              style={{ WebkitUserSelect: 'text', userSelect: 'text' }}
+            />
+            <span className="text-sm text-gray-500 font-medium">ft</span>
+            <button
+              onClick={() => {
+                const ft = parseFloat(scaleInput);
+                if (!ft || ft <= 0 || !scalePoint1 || !scalePoint2) return;
+                const dx = scalePoint2.x - scalePoint1.x;
+                const dy = scalePoint2.y - scalePoint1.y;
+                const pixelDist = Math.sqrt(dx * dx + dy * dy);
+                if (pixelDist <= 0) return;
+                setPlanPixelsPerFoot(pixelDist / ft);
+                setScaleMode(false);
+                setScalePoint1(null);
+                setScalePoint2(null);
+                setScaleInput('');
+              }}
+              disabled={!scaleInput || parseFloat(scaleInput) <= 0}
+              className="px-3 py-1.5 bg-purple-500 text-white rounded-lg text-sm font-medium disabled:opacity-30"
+            >
+              Set
+            </button>
+          </div>
         </div>
       )}
 
@@ -324,6 +399,19 @@ export function PlanViewCanvas() {
             {sortedPlanStamps.map((stamp) => (
               <PlanStamp key={stamp.id} stamp={stamp} isSelected={stamp.id === selectedStampId} />
             ))}
+          </Layer>
+
+          {/* Scale measurement points */}
+          <Layer listening={false}>
+            {scaleMode && scalePoint1 && (
+              <Circle x={scalePoint1.x} y={scalePoint1.y} radius={8 / stageScale} fill="#a855f7" stroke="#fff" strokeWidth={2 / stageScale} />
+            )}
+            {scaleMode && scalePoint2 && (
+              <Circle x={scalePoint2.x} y={scalePoint2.y} radius={8 / stageScale} fill="#a855f7" stroke="#fff" strokeWidth={2 / stageScale} />
+            )}
+            {scaleMode && scalePoint1 && scalePoint2 && (
+              <Line points={[scalePoint1.x, scalePoint1.y, scalePoint2.x, scalePoint2.y]} stroke="#a855f7" strokeWidth={2 / stageScale} dash={[6 / stageScale, 4 / stageScale]} />
+            )}
           </Layer>
 
           {/* Selection polygon overlay */}
