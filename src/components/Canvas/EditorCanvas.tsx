@@ -31,6 +31,7 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
   const addStamp = useProjectStore((s) => s.addStamp);
   const toolMode = useProjectStore((s) => s.toolMode);
   const pendingStampAssetId = useProjectStore((s) => s.pendingStampAssetId);
+  const hasOverlay = !!useProjectStore((s) => s.planView.selectionImage);
   const eraserActive = useRef(false);
 
   // Fit canvas to container — photo stays locked in place
@@ -43,7 +44,9 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
       if (backgroundWidth && backgroundHeight) {
         const scaleX = clientWidth / backgroundWidth;
         const scaleY = clientHeight / backgroundHeight;
-        const scale = Math.min(scaleX, scaleY, 1);
+        let scale = Math.min(scaleX, scaleY, 1);
+        // Shrink to 2/3 when overlay is active so corners can extend past edges
+        if (hasOverlay) scale *= 0.66;
         const x = (clientWidth - backgroundWidth * scale) / 2;
         const y = (clientHeight - backgroundHeight * scale) / 2;
         setStageTransform(scale, x, y);
@@ -54,7 +57,7 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
     const observer = new ResizeObserver(updateSize);
     if (containerRef.current) observer.observe(containerRef.current);
     return () => observer.disconnect();
-  }, [backgroundWidth, backgroundHeight, setCanvasSize, setStageTransform]);
+  }, [backgroundWidth, backgroundHeight, hasOverlay, setCanvasSize, setStageTransform]);
 
   // Handle click/tap on stage — either place pending stamp or deselect
   const handleStageClick = useCallback(
