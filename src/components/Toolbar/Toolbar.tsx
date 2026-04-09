@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useCustomStampStore } from '../../store/useCustomStampStore';
 import { SettingsMenu } from '../SettingsMenu';
+import { PlanDiameterDisplay } from '../GestureControls/ToolsSidebar';
 import Konva from 'konva';
 import { useProjectStore } from '../../store/useProjectStore';
 import type { ToolMode } from '../../types';
@@ -37,7 +38,10 @@ export function Toolbar({ stageRef }: ToolbarProps) {
   const backgroundWidth = useProjectStore((s) => s.backgroundWidth);
   const backgroundHeight = useProjectStore((s) => s.backgroundHeight);
   const selectedStampId = useProjectStore((s) => s.selectedStampId);
+  const planStamps = useProjectStore((s) => s.planStamps);
   const removeStamp = useProjectStore((s) => s.removeStamp);
+  const isPlan = viewMode === 'plan';
+  const selectedPlanStamp = isPlan && selectedStampId ? planStamps.find((s) => s.id === selectedStampId) : null;
   const undo = useProjectStore((s) => s.undo);
   const redo = useProjectStore((s) => s.redo);
   const historyIndex = useProjectStore((s) => s.historyIndex);
@@ -232,8 +236,10 @@ export function Toolbar({ stageRef }: ToolbarProps) {
         </>
       )}
 
-      {/* Spacer */}
-      <div className="flex-1" />
+      {/* Center: diameter display for plan view */}
+      <div className="flex-1 flex items-center justify-center">
+        <PlanDiameterDisplay stamp={selectedPlanStamp ?? null} selectedStampId={selectedStampId} isPlan={isPlan} />
+      </div>
 
       {/* Library import/export */}
       <ToolButton onClick={() => useCustomStampStore.getState().importLibrary()} label="Import Library">
