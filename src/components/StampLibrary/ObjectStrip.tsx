@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, ClipboardPaste } from 'lucide-react';
 import { useProjectStore } from '../../store/useProjectStore';
 import { useCustomStampStore } from '../../store/useCustomStampStore';
 
@@ -24,6 +24,35 @@ export function ObjectStrip() {
   const items = isTextures
     ? customStamps.filter((s) => s.category === 'textures' || s.name.startsWith('tex-'))
     : customStamps.filter((s) => s.category === activeCategory && !s.name.startsWith('tex-'));
+
+  const handlePaste = useCallback(async () => {
+    try {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const imageType = item.types.find((t) => t.startsWith('image/'));
+        if (imageType) {
+          const blob = await item.getType(imageType);
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            const dataUrl = ev.target?.result as string;
+            const img = new window.Image();
+            img.onload = () => {
+              const cat = isTextures ? 'textures' as const : activeCategory;
+              const name = isTextures
+                ? `tex-Pasted ${new Date().toLocaleTimeString()}`
+                : `Pasted ${new Date().toLocaleTimeString()}`;
+              useCustomStampStore.getState().addStampFromDataUrl(
+                name, dataUrl, img.naturalWidth, img.naturalHeight, cat as any
+              );
+            };
+            img.src = dataUrl;
+          };
+          reader.readAsDataURL(blob);
+          return;
+        }
+      }
+    } catch { /* clipboard not available */ }
+  }, [activeCategory, isTextures]);
 
   const handleUpload = useCallback(() => {
     const input = document.createElement('input');
@@ -60,10 +89,19 @@ export function ObjectStrip() {
       {/* Upload button */}
       <button
         onClick={handleUpload}
-        className="w-12 h-12 mt-1 mb-1 flex items-center justify-center rounded-lg bg-blue-50 text-blue-500 hover:bg-blue-100 transition-colors shrink-0"
+        className="w-12 h-10 mt-1 flex items-center justify-center rounded-lg bg-blue-50 text-blue-500 hover:bg-blue-100 transition-colors shrink-0"
         title="Upload"
       >
         <Plus size={20} />
+      </button>
+
+      {/* Paste from clipboard */}
+      <button
+        onClick={handlePaste}
+        className="w-12 h-10 mb-1 flex items-center justify-center rounded-lg bg-purple-50 text-purple-500 hover:bg-purple-100 transition-colors shrink-0"
+        title="Paste from clipboard"
+      >
+        <ClipboardPaste size={18} />
       </button>
 
       <div className="w-10 h-px bg-gray-200 mb-1" />
