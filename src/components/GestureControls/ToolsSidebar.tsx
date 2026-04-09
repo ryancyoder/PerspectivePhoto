@@ -27,6 +27,7 @@ export function ToolsSidebar() {
   const trackRef = useRef<HTMLDivElement>(null);
   const [sliderDragging, setSliderDragging] = useState(false);
   const sliderHistoryRecorded = useRef(false);
+  const sliderPointerId = useRef<number | null>(null);
 
   const handleSliderMove = useCallback((clientY: number) => {
     if (!trackRef.current || !selectedStampId) return;
@@ -38,8 +39,18 @@ export function ToolsSidebar() {
 
   useEffect(() => {
     if (!sliderDragging) return;
-    const onMove = (e: PointerEvent) => { e.preventDefault(); handleSliderMove(e.clientY); };
-    const onUp = () => { setSliderDragging(false); sliderHistoryRecorded.current = false; };
+    const pid = sliderPointerId.current;
+    const onMove = (e: PointerEvent) => {
+      if (e.pointerId !== pid) return;
+      e.preventDefault();
+      handleSliderMove(e.clientY);
+    };
+    const onUp = (e: PointerEvent) => {
+      if (e.pointerId !== pid) return;
+      setSliderDragging(false);
+      sliderHistoryRecorded.current = false;
+      sliderPointerId.current = null;
+    };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
     return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); };
@@ -75,6 +86,7 @@ export function ToolsSidebar() {
           if (!stamp) return;
           e.preventDefault(); e.stopPropagation();
           if (!sliderHistoryRecorded.current) { pushHistory(); sliderHistoryRecorded.current = true; }
+          sliderPointerId.current = e.pointerId;
           setSliderDragging(true);
           handleSliderMove(e.clientY);
         }}

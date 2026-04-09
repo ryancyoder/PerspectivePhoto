@@ -187,6 +187,7 @@ function MovementJoystick() {
   const velocityRef = useRef({ x: 0, y: 0 });
   const animRef = useRef(0);
   const historyRecorded = useRef(false);
+  const joyPointerId = useRef<number | null>(null);
   const SPEED = 1.5 / stageScale;
 
   useEffect(() => {
@@ -215,17 +216,21 @@ function MovementJoystick() {
 
   useEffect(() => {
     if (!dragging) return;
+    const pid = joyPointerId.current;
     const onMove = (e: PointerEvent) => {
+      if (e.pointerId !== pid) return;
       e.preventDefault();
       const off = getOffset(e.clientX, e.clientY);
       setOffset(off);
       velocityRef.current = { x: off.x / MAX_OFFSET, y: off.y / MAX_OFFSET };
     };
-    const onUp = () => {
+    const onUp = (e: PointerEvent) => {
+      if (e.pointerId !== pid) return;
       setDragging(false);
       setOffset({ x: 0, y: 0 });
       velocityRef.current = { x: 0, y: 0 };
       historyRecorded.current = false;
+      joyPointerId.current = null;
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
@@ -245,6 +250,7 @@ function MovementJoystick() {
           if (!stamp) return;
           e.preventDefault(); e.stopPropagation();
           if (!historyRecorded.current) { pushHistory(); historyRecorded.current = true; }
+          joyPointerId.current = e.pointerId;
           setDragging(true);
           const off = getOffset(e.clientX, e.clientY);
           setOffset(off);
