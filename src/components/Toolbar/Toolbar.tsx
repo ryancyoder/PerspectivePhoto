@@ -8,6 +8,7 @@ import {
   Trash2,
   PersonStanding,
   Eraser,
+  CircleOff,
   Image as ImageIcon,
   LayoutGrid,
   Stamp,
@@ -161,11 +162,16 @@ export function Toolbar({ stageRef }: ToolbarProps) {
     }, 50);
   }, [stageRef]);
 
-  const tools: { mode: ToolMode; icon: typeof MousePointer2; label: string }[] = [
+  const tools: { mode: ToolMode; icon: typeof MousePointer2; label: string; planOnly?: boolean; photoOnly?: boolean }[] = [
     { mode: 'select', icon: MousePointer2, label: 'Select' },
-    { mode: 'calibrate', icon: PersonStanding, label: 'Calibrate' },
-    { mode: 'eraser', icon: Eraser, label: 'Erase Overlay' },
+    { mode: 'calibrate', icon: PersonStanding, label: 'Calibrate', photoOnly: true },
+    { mode: 'eraser', icon: Eraser, label: 'Erase Overlay', photoOnly: true },
+    { mode: 'objEraser', icon: CircleOff, label: 'Object Eraser', planOnly: true },
   ];
+
+  const filteredTools = tools.filter(t =>
+    (!t.planOnly || isPlan) && (!t.photoOnly || !isPlan)
+  );
 
   return (
     <div className="h-14 bg-white border-b border-gray-200 flex items-center px-2 gap-1 shrink-0">
@@ -181,7 +187,7 @@ export function Toolbar({ stageRef }: ToolbarProps) {
       <div className="w-px h-8 bg-gray-200 mx-1" />
 
       {/* Tool modes */}
-      {tools.map(({ mode, icon: Icon, label }) => (
+      {filteredTools.map(({ mode, icon: Icon, label }) => (
         <ToolButton
           key={mode}
           onClick={() => setToolMode(mode)}

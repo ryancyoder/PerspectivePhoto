@@ -18,6 +18,7 @@ export function PlanViewCanvas() {
   const selectedStampId = useProjectStore((s) => s.selectedStampId);
   const selectStamp = useProjectStore((s) => s.selectStamp);
   const addPlanStamp = useProjectStore((s) => s.addPlanStamp);
+  const removePlanStamp = useProjectStore((s) => s.removePlanStamp);
   const setCanvasSize = useProjectStore((s) => s.setCanvasSize);
   const setPlanSelection = useProjectStore((s) => s.setPlanSelection);
 
@@ -42,6 +43,9 @@ export function PlanViewCanvas() {
   // Track stamp being placed (press-drag-release)
   const placingStampId = useRef<string | null>(null);
   const placingPointerId = useRef<number | null>(null);
+  // Object eraser
+  const objEraserActive = useRef(false);
+  const OBJ_ERASER_RADIUS = 30;
   // Cache the source stamp for stamp-gun mode so it doesn't change between taps
   const stampGunSource = useRef<{ assetId: string; manualScale: number; rotation: number; flipX: boolean; opacity: number } | null>(null);
 
@@ -112,9 +116,33 @@ export function PlanViewCanvas() {
              e.clientY >= rect.top && e.clientY <= rect.bottom;
     };
 
+    const eraseAtPosition = (clientX: number, clientY: number) => {
+      const pos = clientToCanvas(clientX, clientY);
+      if (!pos) return;
+      const state = useProjectStore.getState();
+      const toRemove = state.planStamps.filter((s) => {
+        const dx = s.x - pos.x;
+        const dy = s.y - pos.y;
+        return Math.sqrt(dx * dx + dy * dy) < OBJ_ERASER_RADIUS / stageScale;
+      });
+      for (const s of toRemove) {
+        removePlanStamp(s.id);
+      }
+    };
+
     const handlePointerDown = (e: PointerEvent) => {
       if (!isOverCanvas(e)) return;
       const state = useProjectStore.getState();
+
+      // Object eraser mode
+      if (state.toolMode === 'objEraser') {
+        e.preventDefault();
+        e.stopPropagation();
+        objEraserActive.current = true;
+        eraseAtPosition(e.clientX, e.clientY);
+        return;
+      }
+
       if (state.moveOnly) return;
 
       // Scale mode — tap two points
@@ -189,6 +217,12 @@ export function PlanViewCanvas() {
     };
 
     const handlePointerMove = (e: PointerEvent) => {
+      // Object eraser continuous swipe
+      if (objEraserActive.current) {
+        e.preventDefault();
+        eraseAtPosition(e.clientX, e.clientY);
+        return;
+      }
       if (!placingStampId.current || e.pointerId !== placingPointerId.current) return;
       e.preventDefault();
       const pos = clientToCanvas(e.clientX, e.clientY);
@@ -198,6 +232,10 @@ export function PlanViewCanvas() {
     };
 
     const handlePointerUp = (e: PointerEvent) => {
+      if (objEraserActive.current) {
+        objEraserActive.current = false;
+        return;
+      }
       if (!placingStampId.current || e.pointerId !== placingPointerId.current) return;
       const pos = clientToCanvas(e.clientX, e.clientY);
       if (pos) {
@@ -216,7 +254,7 @@ export function PlanViewCanvas() {
       document.removeEventListener('pointermove', handlePointerMove, true);
       document.removeEventListener('pointerup', handlePointerUp, true);
     };
-  }, [clientToCanvas, addPlanStamp, scaleMode, scalePoint1, scalePoint2]);
+  }, [clientToCanvas, addPlanStamp, removePlanStamp, scaleMode, scalePoint1, scalePoint2, stageScale]);
 
   // Konva click — polygon selection or deselect
   const getPlanPos = useCallback(() => {

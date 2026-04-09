@@ -1,6 +1,6 @@
 export type StampCategory = 'shade-trees' | 'ornamental-trees' | 'columnar' | 'grasses' | 'shrubs' | 'perennials' | 'ground-cover' | 'textures' | 'custom';
 
-export type ToolMode = 'select' | 'horizon' | 'calibrate' | 'eraser' | 'pan';
+export type ToolMode = 'select' | 'horizon' | 'calibrate' | 'eraser' | 'objEraser' | 'pan';
 
 export interface CalibrationRef {
   x: number;           // position of the reference person
