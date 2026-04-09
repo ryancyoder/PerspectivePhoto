@@ -6,6 +6,8 @@ import { useProjectStore } from '../../store/useProjectStore';
 export function CustomStampUpload() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const customStamps = useCustomStampStore((s) => s.stamps);
+  // Filter out textures — those are shown in the Surfaces tab
+  const plantStamps = customStamps.filter(s => !s.name.startsWith('tex-'));
   const addStamp = useCustomStampStore((s) => s.addStamp);
   const addStampFromDataUrl = useCustomStampStore((s) => s.addStampFromDataUrl);
   const removeStamp = useCustomStampStore((s) => s.removeStamp);
@@ -144,14 +146,14 @@ export function CustomStampUpload() {
 
       {/* Custom stamp grid */}
       <div className="flex-1 overflow-y-auto p-2">
-        {customStamps.length === 0 ? (
+        {plantStamps.length === 0 ? (
           <div className="text-center text-gray-300 text-[11px] mt-4 px-2">
             <p>No custom stamps yet.</p>
             <p className="mt-1">Upload PNGs or paste images from your clipboard.</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-1">
-            {customStamps.map((stamp) => {
+            {plantStamps.map((stamp) => {
               const isActive = pendingStampAssetId === stamp.id;
               return (
                 <div
