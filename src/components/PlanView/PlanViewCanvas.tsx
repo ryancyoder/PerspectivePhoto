@@ -24,6 +24,7 @@ export function PlanViewCanvas() {
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
 
   // Polygon selection state
+  const [polygonMode, setPolygonMode] = useState(false);
   const [points, setPoints] = useState<Point2D[]>([]);
   const [isClosed, setIsClosed] = useState(false);
 
@@ -139,11 +140,10 @@ export function PlanViewCanvas() {
 
   const handleTap = useCallback(() => {
     const state = useProjectStore.getState();
-    // Skip if pending stamp (handled by pointer events)
     if (state.pendingStampAssetId) return;
 
-    if (!isClosed && planView.image) {
-      // Polygon selection mode when no stamp pending
+    // Only do polygon selection when polygon mode is active
+    if (polygonMode && !isClosed && planView.image) {
       const pos = getPlanPos();
       if (!pos) return;
       if (points.length >= 3) {
@@ -154,14 +154,15 @@ export function PlanViewCanvas() {
       setPoints((prev) => [...prev, pos]);
       return;
     }
-  }, [isClosed, getPlanPos, points, stageScale, planView.image]);
+  }, [polygonMode, isClosed, getPlanPos, points, stageScale, planView.image]);
 
   const handleStageClick = useCallback((e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     if (useProjectStore.getState().pendingStampAssetId) return;
-    if (e.target === e.target.getStage() && points.length === 0) {
+    if (polygonMode) return;
+    if (e.target === e.target.getStage()) {
       selectStamp(null);
     }
-  }, [selectStamp, points]);
+  }, [selectStamp, polygonMode]);
 
   const closeAndCrop = useCallback(() => {
     if (points.length < 3 || !planImage) return;
@@ -188,16 +189,36 @@ export function PlanViewCanvas() {
 
   return (
     <div ref={containerRef} className="absolute inset-0 bg-gray-50 overflow-hidden" style={{ touchAction: 'none' }}>
-      <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
-        <div className="bg-emerald-500 text-white px-3 py-1 rounded-full text-xs font-medium">
-          {hasPending ? 'Press and drag to place symbol' :
-           points.length === 0 ? 'Tap objects to place — or draw polygon for skew selection' :
-           points.length < 3 ? `Tap to add points (${points.length}/3 min)` :
-           'Tap first point to close, or keep adding'}
-        </div>
+      {/* Top bar: instructions + polygon toggle */}
+      <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex gap-2 items-center">
+        {hasPending && (
+          <div className="bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-medium pointer-events-none">
+            Press and drag to place symbol
+          </div>
+        )}
+        {!hasPending && !polygonMode && (
+          <div className="bg-emerald-500 text-white px-3 py-1 rounded-full text-xs font-medium pointer-events-none">
+            Plan View
+          </div>
+        )}
+        {polygonMode && (
+          <div className="bg-amber-500 text-white px-3 py-1 rounded-full text-xs font-medium pointer-events-none">
+            {points.length === 0 ? 'Tap to draw selection polygon'
+              : points.length < 3 ? `Tap to add points (${points.length}/3 min)`
+              : 'Tap first point to close, or keep adding'}
+          </div>
+        )}
+        <button
+          onClick={() => { setPolygonMode(!polygonMode); setPoints([]); setIsClosed(false); }}
+          className={`px-3 py-1 rounded-full text-xs font-medium shadow transition-colors ${
+            polygonMode ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 border border-gray-300'
+          }`}
+        >
+          {polygonMode ? 'Exit Polygon' : 'Polygon Select'}
+        </button>
       </div>
 
-      {points.length > 0 && !isClosed && (
+      {polygonMode && points.length > 0 && !isClosed && (
         <div className="absolute top-10 left-1/2 -translate-x-1/2 z-10 flex gap-2">
           <button onClick={() => { setPoints([]); setIsClosed(false); }} className="px-3 py-1 bg-red-500 text-white rounded-full text-xs font-medium shadow">Clear</button>
           <button onClick={() => setPoints((p) => p.slice(0, -1))} className="px-3 py-1 bg-gray-500 text-white rounded-full text-xs font-medium shadow">Undo Point</button>

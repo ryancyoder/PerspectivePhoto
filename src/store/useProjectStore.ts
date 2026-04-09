@@ -69,6 +69,7 @@ interface ProjectState {
   removeStamp: (id: string) => void;
   selectStamp: (id: string | null) => void;
   duplicateStamp: (id: string) => void;
+  duplicatePlanStamp: (id: string) => void;
   setPendingStamp: (assetId: string | null) => void;
 
   setToolMode: (mode: ToolMode) => void;
@@ -255,6 +256,22 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     };
     set((state) => ({
       stamps: [...state.stamps, newStamp],
+      selectedStampId: newStamp.id,
+    }));
+  },
+
+  duplicatePlanStamp: (id) => {
+    const stamp = get().planStamps.find((s) => s.id === id);
+    if (!stamp) return;
+    const newStamp: PlacedStamp = {
+      ...stamp,
+      id: uuid(),
+      x: stamp.x + 30,
+      y: stamp.y + 30,
+      zIndex: get().planStamps.length,
+    };
+    set((state) => ({
+      planStamps: [...state.planStamps, newStamp],
       selectedStampId: newStamp.id,
     }));
   },

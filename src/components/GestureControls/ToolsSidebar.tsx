@@ -16,13 +16,23 @@ function positionToScale(pos: number) {
 
 export function ToolsSidebar() {
   const selectedStampId = useProjectStore((s) => s.selectedStampId);
-  const stamps = useProjectStore((s) => s.stamps);
+  const viewMode = useProjectStore((s) => s.viewMode);
+  const perspStamps = useProjectStore((s) => s.stamps);
+  const planStamps = useProjectStore((s) => s.planStamps);
   const updateStamp = useProjectStore((s) => s.updateStamp);
+  const updatePlanStamp = useProjectStore((s) => s.updatePlanStamp);
   const pushHistory = useProjectStore((s) => s.pushHistory);
   const duplicateStamp = useProjectStore((s) => s.duplicateStamp);
+  const duplicatePlanStamp = useProjectStore((s) => s.duplicatePlanStamp);
   const removeStamp = useProjectStore((s) => s.removeStamp);
+  const removePlanStamp = useProjectStore((s) => s.removePlanStamp);
 
-  const stamp = selectedStampId ? stamps.find((s) => s.id === selectedStampId) : null;
+  const isPlan = viewMode === 'plan';
+  const allStamps = isPlan ? planStamps : perspStamps;
+  const doUpdate = isPlan ? updatePlanStamp : updateStamp;
+  const doRemove = isPlan ? removePlanStamp : removeStamp;
+  const doDuplicate = isPlan ? duplicatePlanStamp : duplicateStamp;
+  const stamp = selectedStampId ? allStamps.find((s) => s.id === selectedStampId) : null;
 
   // ---- Size slider ----
   const trackRef = useRef<HTMLDivElement>(null);
@@ -34,8 +44,8 @@ export function ToolsSidebar() {
     const rect = trackRef.current.getBoundingClientRect();
     const y = clientY - rect.top - THUMB_SIZE / 2;
     const clamped = Math.max(0, Math.min(TRACK_HEIGHT - THUMB_SIZE, y));
-    updateStamp(selectedStampId, { manualScale: Math.round(positionToScale(clamped / (TRACK_HEIGHT - THUMB_SIZE)) * 100) / 100 });
-  }, [selectedStampId, updateStamp]);
+    doUpdate(selectedStampId, { manualScale: Math.round(positionToScale(clamped / (TRACK_HEIGHT - THUMB_SIZE)) * 100) / 100 });
+  }, [selectedStampId, doUpdate]);
 
   useEffect(() => {
     if (!sliderDragging) return;
@@ -97,7 +107,7 @@ export function ToolsSidebar() {
       {/* Action buttons */}
       <div className="flex gap-1 mt-2">
         <button
-          onPointerUp={(e) => { e.stopPropagation(); if (selectedStampId) duplicateStamp(selectedStampId); }}
+          onPointerUp={(e) => { e.stopPropagation(); if (selectedStampId) doDuplicate(selectedStampId); }}
           className={`w-11 h-11 rounded-full backdrop-blur-sm border flex items-center justify-center transition-colors select-none ${
             stamp ? 'bg-black/30 border-white/20 active:bg-blue-500' : 'bg-gray-200 border-gray-300 opacity-40'
           }`}
@@ -125,7 +135,7 @@ export function ToolsSidebar() {
 
       {/* Delete selected */}
       <button
-        onClick={() => { if (selectedStampId) removeStamp(selectedStampId); }}
+        onClick={() => { if (selectedStampId) doRemove(selectedStampId); }}
         className={`mt-1 w-11 h-11 rounded-full backdrop-blur-sm border flex items-center justify-center transition-colors select-none ${
           stamp ? 'bg-red-500/70 border-white/20 active:bg-red-600' : 'bg-gray-200 border-gray-300 opacity-40'
         }`}
