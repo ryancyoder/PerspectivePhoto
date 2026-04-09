@@ -8,7 +8,8 @@ interface ProjectState {
   backgroundImage: string | null;
   backgroundWidth: number;
   backgroundHeight: number;
-  backgroundSaturation: number; // -1 (grayscale) to 0 (normal) to 1 (oversaturated)
+  backgroundSaturation: number; // 0 (full B&W) to 1 (normal color)
+  backgroundOpacity: number;    // 0 (invisible) to 1 (fully opaque)
 
   // Canvas
   canvasWidth: number;
@@ -48,6 +49,7 @@ interface ProjectState {
   // Actions
   setBackgroundImage: (dataUrl: string, width: number, height: number) => void;
   setBackgroundSaturation: (value: number) => void;
+  setBackgroundOpacity: (value: number) => void;
   setCanvasSize: (width: number, height: number) => void;
   setStageTransform: (scale: number, x: number, y: number) => void;
   setPerspective: (update: Partial<PerspectiveConfig>) => void;
@@ -88,7 +90,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   backgroundImage: null,
   backgroundWidth: 0,
   backgroundHeight: 0,
-  backgroundSaturation: 0,
+  backgroundSaturation: 1,
+  backgroundOpacity: 1,
   canvasWidth: 1024,
   canvasHeight: 768,
   stageScale: 1,
@@ -137,6 +140,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   setBackgroundSaturation: (value) => set({ backgroundSaturation: value }),
+  setBackgroundOpacity: (value) => set({ backgroundOpacity: value }),
 
   setCanvasSize: (width, height) => set({ canvasWidth: width, canvasHeight: height }),
 
