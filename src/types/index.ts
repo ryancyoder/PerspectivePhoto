@@ -31,11 +31,12 @@ export interface StampAsset {
 export interface CustomStamp {
   id: string;
   name: string;
-  category: StampCategory;  // which category this belongs to
-  dataUrl: string;           // base64 PNG data URL
+  category: StampCategory;
+  dataUrl: string;
   naturalWidth: number;
   naturalHeight: number;
   createdAt: number;
+  defaultScale?: number;  // locked-in default manualScale for plan view placement
 }
 
 export interface PlacedStamp {

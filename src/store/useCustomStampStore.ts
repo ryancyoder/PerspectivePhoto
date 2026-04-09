@@ -291,6 +291,7 @@ interface PlanSymbolLibrary {
   addSymbolFromDataUrl: (name: string, dataUrl: string, width: number, height: number, category?: StampCategory) => string;
   removeSymbol: (id: string) => void;
   getSymbol: (id: string) => CustomStamp | undefined;
+  setSymbolDefaultScale: (id: string, scale: number) => void;
   exportLibrary: () => void;
   importLibrary: () => void;
 }
@@ -355,6 +356,14 @@ export const usePlanSymbolStore = create<PlanSymbolLibrary>((set, get) => ({
   },
 
   getSymbol: (id) => get().symbols.find((s) => s.id === id),
+
+  setSymbolDefaultScale: (id, scale) => {
+    set((state) => ({
+      symbols: state.symbols.map((s) => (s.id === id ? { ...s, defaultScale: scale } : s)),
+    }));
+    const sym = get().symbols.find((s) => s.id === id);
+    if (sym) dbPut(sym, PLAN_STORE_NAME);
+  },
 
   exportLibrary: () => {
     const symbols = get().symbols;

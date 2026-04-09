@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { v4 as uuid } from 'uuid';
 import type { PlacedStamp, PerspectiveConfig, ToolMode, HistoryEntry, ViewMode, PlanViewConfig, Point2D } from '../types';
 import { createDefaultPerspective } from '../engine/perspective';
-import { saveProjectState, loadProjectState } from './useCustomStampStore';
+import { saveProjectState, loadProjectState, usePlanSymbolStore } from './useCustomStampStore';
 
 interface ProjectState {
   // Background
@@ -198,12 +198,15 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   addPlanStamp: (assetId, x, y) => {
+    // Use the symbol's locked-in defaultScale if set
+    const sym = usePlanSymbolStore.getState().getSymbol(assetId);
+    const defaultScale = sym?.defaultScale ?? 1;
     const stamp: PlacedStamp = {
       id: uuid(),
       assetId,
       x,
       y,
-      manualScale: 1,
+      manualScale: defaultScale,
       rotation: 0,
       flipX: false,
       opacity: 1,

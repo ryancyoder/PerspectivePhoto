@@ -1,5 +1,6 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
 import { useProjectStore } from '../../store/useProjectStore';
+import { usePlanSymbolStore } from '../../store/useCustomStampStore';
 import { DuplicateStampMode } from '../Canvas/EditorCanvas';
 
 const TRACK_HEIGHT = 180;
@@ -104,6 +105,9 @@ export function ToolsSidebar() {
         )}
       </div>
 
+      {/* Diameter display + lock (plan view only) */}
+      <PlanDiameterDisplay stamp={stamp ?? null} selectedStampId={selectedStampId} isPlan={isPlan} />
+
       {/* Action buttons */}
       <div className="flex gap-1 mt-2">
         <button
@@ -154,6 +158,59 @@ export function ToolsSidebar() {
       <UndoRedoButtons />
 
       <div className="flex-1" />
+    </div>
+  );
+}
+
+function PlanDiameterDisplay({ stamp, selectedStampId, isPlan }: {
+  stamp: { assetId: string; manualScale: number } | null;
+  selectedStampId: string | null;
+  isPlan: boolean;
+}) {
+  const planPixelsPerFoot = useProjectStore((s) => s.planPixelsPerFoot);
+  const setSymbolDefaultScale = usePlanSymbolStore((s) => s.setSymbolDefaultScale);
+  const [locked, setLocked] = useState(false);
+
+  if (!isPlan || !stamp || !selectedStampId) return null;
+
+  const symbol = usePlanSymbolStore.getState().getSymbol(stamp.assetId);
+  if (!symbol) return null;
+
+  // Calculate rendered width in pixels
+  const baseSize = 80;
+  const aspect = symbol.naturalWidth / symbol.naturalHeight;
+  const widthPx = baseSize * aspect * stamp.manualScale;
+
+  // Convert to feet if scale is set
+  const hasFeetScale = planPixelsPerFoot && planPixelsPerFoot > 0;
+  const widthFt = hasFeetScale ? widthPx / planPixelsPerFoot! : null;
+  const isDefaultLocked = symbol.defaultScale !== undefined;
+
+  return (
+    <div className="w-full px-2 mt-1 flex flex-col items-center">
+      {/* Diameter readout */}
+      <div className="text-[10px] font-semibold text-center text-gray-500">
+        {widthFt !== null
+          ? `${widthFt.toFixed(1)} ft wide`
+          : `${Math.round(widthPx)}px wide`
+        }
+      </div>
+
+      {/* Lock size button */}
+      <button
+        onClick={() => {
+          setSymbolDefaultScale(stamp.assetId, stamp.manualScale);
+          setLocked(true);
+          setTimeout(() => setLocked(false), 1500);
+        }}
+        className={`mt-1 w-full py-1 rounded-full text-[10px] font-medium transition-colors select-none ${
+          locked ? 'bg-green-500 text-white'
+            : isDefaultLocked ? 'bg-purple-100 text-purple-600 border border-purple-300'
+            : 'bg-gray-100 text-gray-500 border border-gray-300'
+        }`}
+      >
+        {locked ? 'Locked!' : isDefaultLocked ? 'Update Default' : 'Lock as Default'}
+      </button>
     </div>
   );
 }
