@@ -173,6 +173,35 @@ export function PlanOverlay() {
     [planView.corners, setPlanCorners]
   );
 
+  // Drag the whole overlay by moving all 4 corners together
+  const dragStartPos = useRef<{ x: number; y: number } | null>(null);
+  const dragStartCorners = useRef<[Point2D, Point2D, Point2D, Point2D] | null>(null);
+
+  const handleOverlayDragStart = useCallback((e: any) => {
+    if (!planView.corners || toolMode !== 'select') return;
+    dragStartPos.current = { x: e.target.x(), y: e.target.y() };
+    dragStartCorners.current = planView.corners.map(c => ({ ...c })) as [Point2D, Point2D, Point2D, Point2D];
+  }, [planView.corners, toolMode]);
+
+  const handleOverlayDragMove = useCallback((e: any) => {
+    if (!dragStartPos.current || !dragStartCorners.current) return;
+    const dx = e.target.x() - dragStartPos.current.x;
+    const dy = e.target.y() - dragStartPos.current.y;
+    const newCorners = dragStartCorners.current.map(c => ({
+      x: c.x + dx,
+      y: c.y + dy,
+    })) as [Point2D, Point2D, Point2D, Point2D];
+    setPlanCorners(newCorners);
+  }, [setPlanCorners]);
+
+  const handleOverlayDragEnd = useCallback((e: any) => {
+    // Reset the Line position back to 0,0 since we moved the corners instead
+    e.target.x(0);
+    e.target.y(0);
+    dragStartPos.current = null;
+    dragStartCorners.current = null;
+  }, []);
+
   // Expose eraser handlers for EditorCanvas to call
   PlanOverlay.onEraseMove = handleEraseStroke;
   PlanOverlay.onEraseEnd = handleEraseEnd;
@@ -200,7 +229,7 @@ export function PlanOverlay() {
         />
       )}
 
-      {/* Corner outline */}
+      {/* Draggable quad body — drag inside to move the whole overlay */}
       {!isEraserMode && (
         <Line
           points={[
@@ -213,8 +242,12 @@ export function PlanOverlay() {
           stroke="#fff"
           strokeWidth={2}
           dash={[6, 4]}
-          listening={false}
           opacity={0.7}
+          fill="transparent"
+          draggable={toolMode === 'select'}
+          onDragStart={handleOverlayDragStart}
+          onDragMove={handleOverlayDragMove}
+          onDragEnd={handleOverlayDragEnd}
         />
       )}
 
