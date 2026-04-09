@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, useEffect } from 'react';
-import { Plus, X, ClipboardPaste } from 'lucide-react';
+import { Plus, X, ClipboardPaste, RefreshCw } from 'lucide-react';
 import { useProjectStore } from '../../store/useProjectStore';
 import { useCustomStampStore } from '../../store/useCustomStampStore';
 
@@ -16,6 +16,8 @@ const CATEGORIES = [
 export function ObjectStrip() {
   const activeCategory = useProjectStore((s) => s.activeCategory ?? 'shade-trees');
   const activeSidebarTab = useProjectStore((s) => s.activeSidebarTab ?? 'objects');
+  const setActiveCategory = useProjectStore((s) => s.setActiveCategory);
+  const setActiveSidebarTab = useProjectStore((s) => s.setActiveSidebarTab);
   const pendingStampAssetId = useProjectStore((s) => s.pendingStampAssetId);
   const setPendingStamp = useProjectStore((s) => s.setPendingStamp);
   const setPlanSelection = useProjectStore((s) => s.setPlanSelection);
@@ -110,12 +112,23 @@ export function ObjectStrip() {
         </button>
       </div>
 
-      {/* Category label */}
-      <div className="w-full px-1.5 mt-1 mb-1">
-        <div className="text-[10px] font-semibold text-gray-500 text-center uppercase tracking-wider">
-          {currentLabel}
-        </div>
-      </div>
+      {/* Category toggle button */}
+      <button
+        onClick={() => {
+          const nextIndex = (currentIndex + 1) % CATEGORIES.length;
+          const next = CATEGORIES[nextIndex];
+          if (next.id === 'textures') {
+            setActiveSidebarTab('textures');
+          } else {
+            setActiveSidebarTab('objects');
+            setActiveCategory(next.id);
+          }
+        }}
+        className="w-full mx-1.5 mt-1 mb-1 h-11 flex items-center justify-center gap-1.5 rounded-lg bg-black/30 backdrop-blur-sm text-white border border-white/20 active:bg-black/50 transition-colors"
+      >
+        <RefreshCw size={12} />
+        <span className="text-[10px] font-semibold uppercase tracking-wider">{currentLabel}</span>
+      </button>
 
       <div className="w-24 h-px bg-gray-200" />
 
