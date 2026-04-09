@@ -76,13 +76,16 @@ export interface Point2D {
 
 /** Plan overlay: uploaded plan image warped onto the perspective photo via 4 corners */
 export interface PlanViewConfig {
-  image: string | null;       // data URL of the uploaded plan image
+  image: string | null;       // data URL of the full uploaded plan image
   imageWidth: number;
   imageHeight: number;
-  // 4 corner positions on the perspective photo where the plan image corners map to
-  // Order: top-left, top-right, bottom-right, bottom-left
+  // Cropped selection from the plan — this is what gets warped
+  selectionImage: string | null;  // data URL of the cropped selection
+  selectionWidth: number;
+  selectionHeight: number;
+  // 4 corner positions on the perspective photo where the selection maps to
   corners: [Point2D, Point2D, Point2D, Point2D] | null;
-  opacity: number;            // overlay opacity (0-1)
-  eraseMask: string | null;   // data URL of erase mask canvas (white = visible, black = erased)
-  visible: boolean;           // toggle overlay on/off
+  opacity: number;
+  eraseMask: string | null;
+  visible: boolean;
 }

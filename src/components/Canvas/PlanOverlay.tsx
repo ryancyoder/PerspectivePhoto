@@ -23,13 +23,13 @@ export function PlanOverlay() {
   const displayCanvasRef = useRef<WarpCanvas | null>(null);
   const isErasing = useRef(false);
 
-  // Load plan image
+  // Load the cropped selection image (not the full plan)
   useEffect(() => {
-    if (!planView.image) { setPlanImg(null); return; }
+    if (!planView.selectionImage) { setPlanImg(null); return; }
     const img = new window.Image();
-    img.src = planView.image;
+    img.src = planView.selectionImage;
     img.onload = () => setPlanImg(img);
-  }, [planView.image]);
+  }, [planView.selectionImage]);
 
   // Create offscreen canvases
   useEffect(() => {
@@ -179,7 +179,7 @@ export function PlanOverlay() {
   PlanOverlay.onEraseEnd = handleEraseEnd;
   PlanOverlay.onEraseStart = () => { isErasing.current = true; };
 
-  if (viewMode !== 'photo' || !planView.image || !planView.corners || !planView.visible) return null;
+  if (viewMode !== 'photo' || !planView.selectionImage || !planView.corners || !planView.visible) return null;
 
   const corners = planView.corners;
   const cornerColors = ['#ef4444', '#f97316', '#22c55e', '#3b82f6'];

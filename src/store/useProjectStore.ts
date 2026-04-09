@@ -58,6 +58,7 @@ interface ProjectState {
   setToolMode: (mode: ToolMode) => void;
   setViewMode: (mode: ViewMode) => void;
   setPlanImage: (dataUrl: string, width: number, height: number) => void;
+  setPlanSelection: (dataUrl: string, width: number, height: number) => void;
   setPlanCorners: (corners: [Point2D, Point2D, Point2D, Point2D]) => void;
   setPlanOpacity: (opacity: number) => void;
   setPlanVisible: (visible: boolean) => void;
@@ -94,8 +95,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     image: null,
     imageWidth: 0,
     imageHeight: 0,
+    selectionImage: null,
+    selectionWidth: 0,
+    selectionHeight: 0,
     corners: null,
-    opacity: 0.5,
+    opacity: 0.6,
     eraseMask: null,
     visible: true,
   },
@@ -196,29 +200,45 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   setToolMode: (mode) => set({ toolMode: mode, selectedStampId: null, pendingStampAssetId: null }),
   setViewMode: (mode) => set({ viewMode: mode }),
 
-  setPlanImage: (dataUrl, width, height) => {
-    // Set default corners to center of the photo when first uploading
-    const bgW = get().backgroundWidth || 1024;
-    const bgH = get().backgroundHeight || 768;
-    const cx = bgW / 2;
-    const cy = bgH / 2;
-    const hw = Math.min(bgW, bgH) * 0.3;
-    const hh = hw * (height / width);
-    const defaultCorners: [{ x: number; y: number }, { x: number; y: number }, { x: number; y: number }, { x: number; y: number }] = [
-      { x: cx - hw, y: cy - hh },  // top-left
-      { x: cx + hw, y: cy - hh },  // top-right
-      { x: cx + hw, y: cy + hh },  // bottom-right
-      { x: cx - hw, y: cy + hh },  // bottom-left
-    ];
+  setPlanImage: (dataUrl, width, height) =>
     set((state) => ({
       planView: {
         ...state.planView,
         image: dataUrl,
         imageWidth: width,
         imageHeight: height,
-        corners: defaultCorners,
+        selectionImage: null,
+        selectionWidth: 0,
+        selectionHeight: 0,
+        corners: null,
         eraseMask: null,
       },
+    })),
+
+  setPlanSelection: (dataUrl, width, height) => {
+    const bgW = get().backgroundWidth || 1024;
+    const bgH = get().backgroundHeight || 768;
+    const cx = bgW / 2;
+    const cy = bgH / 2;
+    // Size the initial overlay to ~25% of the photo
+    const hw = Math.min(bgW, bgH) * 0.2;
+    const hh = hw * (height / width);
+    const corners: [{ x: number; y: number }, { x: number; y: number }, { x: number; y: number }, { x: number; y: number }] = [
+      { x: cx - hw, y: cy - hh },
+      { x: cx + hw, y: cy - hh },
+      { x: cx + hw, y: cy + hh },
+      { x: cx - hw, y: cy + hh },
+    ];
+    set((state) => ({
+      planView: {
+        ...state.planView,
+        selectionImage: dataUrl,
+        selectionWidth: width,
+        selectionHeight: height,
+        corners,
+        eraseMask: null,
+      },
+      viewMode: 'photo' as const,
     }));
   },
 
