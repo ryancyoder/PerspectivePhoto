@@ -73,7 +73,7 @@ export function ObjectStrip() {
         }
       }
     } catch { /* clipboard not available */ }
-  }, [activeCategory, isTextures]);
+  }, [activeCategory, isTextures, isPlanView]);
 
   const handleUpload = useCallback(() => {
     const input = document.createElement('input');
@@ -93,7 +93,7 @@ export function ObjectStrip() {
       }
     };
     input.click();
-  }, [activeCategory, isTextures]);
+  }, [activeCategory, isTextures, isPlanView]);
 
   const handleTap = useCallback((stamp: typeof items[0]) => {
     if (isTextures) {
