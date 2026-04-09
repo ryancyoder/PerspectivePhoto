@@ -89,7 +89,7 @@ export function ObjectStrip() {
 
   return (
     <div
-      className="absolute right-0 top-0 bottom-0 w-28 bg-white/80 backdrop-blur-sm border-l border-gray-200/50 flex flex-col items-center z-10"
+      className="w-28 bg-white/80 backdrop-blur-sm border-l border-gray-200/50 flex flex-col items-center shrink-0"
       style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none' }}
     >
       {/* Upload + Paste side by side */}

@@ -4,9 +4,7 @@ import { Toolbar } from './components/Toolbar/Toolbar';
 import { ObjectStrip } from './components/StampLibrary/ObjectStrip';
 import { EditorCanvas } from './components/Canvas/EditorCanvas';
 import { PlanViewCanvas } from './components/PlanView/PlanViewCanvas';
-import { SizeSlider } from './components/GestureControls/SizeSlider';
-import { MovementJoystick } from './components/GestureControls/MovementJoystick';
-import { CategoryToggle } from './components/GestureControls/CategoryToggle';
+import { ToolsSidebar } from './components/GestureControls/ToolsSidebar';
 import { useProjectStore } from './store/useProjectStore';
 
 export default function App() {
@@ -16,15 +14,15 @@ export default function App() {
   return (
     <div className="w-full h-full flex flex-col bg-gray-50 overflow-hidden fixed inset-0">
       <Toolbar stageRef={stageRef} />
-      <div className="flex flex-1 min-h-0 relative overflow-hidden">
-        {viewMode === 'photo' ? (
-          <EditorCanvas stageRef={stageRef} />
-        ) : (
-          <PlanViewCanvas />
-        )}
-        <SizeSlider />
-        <CategoryToggle />
-        <MovementJoystick />
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        <ToolsSidebar />
+        <div className="flex-1 min-w-0 relative">
+          {viewMode === 'photo' ? (
+            <EditorCanvas stageRef={stageRef} />
+          ) : (
+            <PlanViewCanvas />
+          )}
+        </div>
         <ObjectStrip />
       </div>
     </div>

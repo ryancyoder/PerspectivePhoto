@@ -152,7 +152,7 @@ export function PlanViewCanvas() {
   const flatPoints = points.flatMap((p) => [p.x, p.y]);
 
   return (
-    <div ref={containerRef} className="flex-1 bg-gray-50 relative overflow-hidden">
+    <div ref={containerRef} className="absolute inset-0 bg-gray-50 overflow-hidden">
       {/* Instructions */}
       <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
         <div className="bg-emerald-500 text-white px-3 py-1 rounded-full text-xs font-medium">
