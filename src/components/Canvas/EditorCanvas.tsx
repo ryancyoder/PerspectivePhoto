@@ -37,7 +37,11 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
   const hasOverlay = !!useProjectStore((s) => s.planView.selectionImage);
   const eraserActive = useRef(false);
 
-  // Fit canvas to container — photo stays locked in place
+  // Track the stamp being placed (press-drag-release flow)
+  const placingStampId = useRef<string | null>(null);
+  const placingPointerId = useRef<number | null>(null);
+
+  // Fit canvas to container
   useEffect(() => {
     const updateSize = () => {
       if (!containerRef.current) return;
@@ -48,7 +52,6 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
         const scaleX = clientWidth / backgroundWidth;
         const scaleY = clientHeight / backgroundHeight;
         let scale = Math.min(scaleX, scaleY, 1);
-        // Shrink to 2/3 when overlay is active so corners can extend past edges
         if (hasOverlay) scale *= 0.66;
         const x = (clientWidth - backgroundWidth * scale) / 2;
         const y = (clientHeight - backgroundHeight * scale) / 2;
@@ -62,62 +65,126 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
     return () => observer.disconnect();
   }, [backgroundWidth, backgroundHeight, hasOverlay, setCanvasSize, setStageTransform]);
 
-  // Handle click/tap on stage — either place pending stamp or deselect
-  const handleStageClick = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
-      const pending = useProjectStore.getState().pendingStampAssetId;
+  // Convert client coords to canvas coords
+  const clientToCanvas = useCallback((clientX: number, clientY: number) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    const s = useProjectStore.getState();
+    return {
+      x: (clientX - rect.left - s.stageX) / s.stageScale,
+      y: (clientY - rect.top - s.stageY) / s.stageScale,
+    };
+  }, []);
 
-      // Convert pointer to canvas coords
-      const stage = stageRef.current;
-      if (stage) {
-        const pos = stage.getPointerPosition();
-        if (pos) {
-          const currentScale = useProjectStore.getState().stageScale;
-          const currentX = useProjectStore.getState().stageX;
-          const currentY = useProjectStore.getState().stageY;
-          const canvasPos = {
-            x: (pos.x - currentX) / currentScale,
-            y: (pos.y - currentY) / currentScale,
-          };
+  // ---- Press-drag-release placement (works with finger AND Apple Pencil) ----
+  // Handles: pending stamp placement, stamp-gun mode
+  // Flow: pointerdown creates stamp → pointermove updates position → pointerup finalizes
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
 
-          // Duplicate stamp mode — hold duplicate button + tap to place copies
-          if (DuplicateStampMode.active) {
-            const srcStamp = useProjectStore.getState().stamps.find(
-              (s) => s.id === useProjectStore.getState().selectedStampId
-            );
-            if (srcStamp) {
-              addStamp(srcStamp.assetId, canvasPos.x, canvasPos.y);
-              // Match the source stamp's scale
-              const newId = useProjectStore.getState().selectedStampId;
-              if (newId) {
-                useProjectStore.getState().updateStamp(newId, {
-                  manualScale: srcStamp.manualScale,
-                  rotation: srcStamp.rotation,
-                  flipX: srcStamp.flipX,
-                  opacity: srcStamp.opacity,
-                });
-              }
-            }
-            return;
-          }
+    const handlePointerDown = (e: PointerEvent) => {
+      const state = useProjectStore.getState();
 
-          // Place pending stamp
-          if (pending && backgroundImage) {
-            addStamp(pending, canvasPos.x, canvasPos.y);
-            return;
-          }
+      // Stamp-gun mode: any pointer type
+      if (DuplicateStampMode.active) {
+        const pos = clientToCanvas(e.clientX, e.clientY);
+        if (!pos) return;
+        const srcStamp = state.stamps.find((s) => s.id === state.selectedStampId);
+        if (!srcStamp) return;
+
+        addStamp(srcStamp.assetId, pos.x, pos.y);
+        const newId = useProjectStore.getState().selectedStampId;
+        if (newId) {
+          useProjectStore.getState().updateStamp(newId, {
+            manualScale: srcStamp.manualScale,
+            rotation: srcStamp.rotation,
+            flipX: srcStamp.flipX,
+            opacity: srcStamp.opacity,
+          });
+          placingStampId.current = newId;
+          placingPointerId.current = e.pointerId;
         }
+        return;
       }
 
-      // Clicked on empty stage area — deselect
+      // Pending stamp placement
+      if (state.pendingStampAssetId && state.backgroundImage) {
+        const pos = clientToCanvas(e.clientX, e.clientY);
+        if (!pos) return;
+
+        addStamp(state.pendingStampAssetId, pos.x, pos.y);
+        const newId = useProjectStore.getState().selectedStampId;
+        if (newId) {
+          placingStampId.current = newId;
+          placingPointerId.current = e.pointerId;
+        }
+        return;
+      }
+    };
+
+    const handlePointerMove = (e: PointerEvent) => {
+      // Only track the pointer that started the placement
+      if (!placingStampId.current || e.pointerId !== placingPointerId.current) return;
+
+      const pos = clientToCanvas(e.clientX, e.clientY);
+      if (!pos) return;
+
+      useProjectStore.getState().updateStamp(placingStampId.current, {
+        x: pos.x,
+        y: pos.y,
+      });
+    };
+
+    const handlePointerUp = (e: PointerEvent) => {
+      if (!placingStampId.current || e.pointerId !== placingPointerId.current) return;
+
+      // Finalize position
+      const pos = clientToCanvas(e.clientX, e.clientY);
+      if (pos) {
+        useProjectStore.getState().updateStamp(placingStampId.current, {
+          x: pos.x,
+          y: pos.y,
+        });
+      }
+
+      placingStampId.current = null;
+      placingPointerId.current = null;
+    };
+
+    const handlePointerCancel = () => {
+      placingStampId.current = null;
+      placingPointerId.current = null;
+    };
+
+    container.addEventListener('pointerdown', handlePointerDown);
+    container.addEventListener('pointermove', handlePointerMove);
+    container.addEventListener('pointerup', handlePointerUp);
+    container.addEventListener('pointercancel', handlePointerCancel);
+
+    return () => {
+      container.removeEventListener('pointerdown', handlePointerDown);
+      container.removeEventListener('pointermove', handlePointerMove);
+      container.removeEventListener('pointerup', handlePointerUp);
+      container.removeEventListener('pointercancel', handlePointerCancel);
+    };
+  }, [clientToCanvas, addStamp]);
+
+  // Handle Konva click/tap — only for selecting/deselecting stamps (not placement)
+  const handleStageClick = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+      // Don't deselect if we're in a placement mode
+      if (DuplicateStampMode.active) return;
+      if (useProjectStore.getState().pendingStampAssetId) return;
+
       if (e.target === e.target.getStage()) {
         selectStamp(null);
       }
     },
-    [backgroundImage, stageRef, addStamp, selectStamp]
+    [selectStamp]
   );
 
-  // Scroll-wheel zoom (desktop only, intentional)
+  // Scroll-wheel zoom (desktop only)
   const handleWheel = useCallback(
     (e: Konva.KonvaEventObject<WheelEvent>) => {
       e.evt.preventDefault();
@@ -151,17 +218,10 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
       e.preventDefault();
       const assetId = e.dataTransfer.getData('stamp-asset-id');
       if (!assetId) return;
-
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const currentScale = useProjectStore.getState().stageScale;
-      const currentX = useProjectStore.getState().stageX;
-      const currentY = useProjectStore.getState().stageY;
-      const x = (e.clientX - rect.left - currentX) / currentScale;
-      const y = (e.clientY - rect.top - currentY) / currentScale;
-      addStamp(assetId, x, y);
+      const pos = clientToCanvas(e.clientX, e.clientY);
+      if (pos) addStamp(assetId, pos.x, pos.y);
     },
-    [addStamp]
+    [clientToCanvas, addStamp]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -169,7 +229,7 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
     e.dataTransfer.dropEffect = 'copy';
   }, []);
 
-  // Eraser handlers
+  // Eraser handlers (Konva events)
   const getCanvasPos = useCallback(() => {
     const stage = stageRef.current;
     if (!stage) return null;
@@ -181,50 +241,6 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
       y: (pos.y - s.stageY) / s.stageScale,
     };
   }, [stageRef]);
-
-  const getCanvasPosFromClient = useCallback((clientX: number, clientY: number) => {
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return null;
-    const s = useProjectStore.getState();
-    return {
-      x: (clientX - rect.left - s.stageX) / s.stageScale,
-      y: (clientY - rect.top - s.stageY) / s.stageScale,
-    };
-  }, []);
-
-  // Apple Pencil / pointer event handler for stamp-gun mode
-  // Catches pencil taps that Konva's onClick/onTap might miss during multi-touch
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const handlePointerDown = (e: PointerEvent) => {
-      if (!DuplicateStampMode.active) return;
-      // Only handle pen/pencil input here (touch is handled by Konva)
-      if (e.pointerType !== 'pen') return;
-
-      const pos = getCanvasPosFromClient(e.clientX, e.clientY);
-      if (!pos) return;
-
-      const state = useProjectStore.getState();
-      const srcStamp = state.stamps.find((s) => s.id === state.selectedStampId);
-      if (srcStamp) {
-        addStamp(srcStamp.assetId, pos.x, pos.y);
-        const newId = useProjectStore.getState().selectedStampId;
-        if (newId) {
-          useProjectStore.getState().updateStamp(newId, {
-            manualScale: srcStamp.manualScale,
-            rotation: srcStamp.rotation,
-            flipX: srcStamp.flipX,
-            opacity: srcStamp.opacity,
-          });
-        }
-      }
-    };
-
-    container.addEventListener('pointerdown', handlePointerDown);
-    return () => container.removeEventListener('pointerdown', handlePointerDown);
-  }, [getCanvasPosFromClient, addStamp]);
 
   const handleMouseDown = useCallback((_e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     if (useProjectStore.getState().toolMode !== 'eraser') return;
@@ -246,18 +262,16 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
     PlanOverlay.onEraseEnd();
   }, []);
 
-  // Sort stamps by Y position for natural depth ordering:
-  // stamps closer to horizon (smaller Y) render behind,
-  // stamps closer to foreground (larger Y) render in front
+  // Sort stamps by Y position for depth ordering
   const sortedStamps = [...stamps].sort((a, b) => a.y - b.y);
 
-  // Show placement cursor when there's a pending stamp
   const cursorClass = toolMode === 'eraser' ? 'cursor-crosshair' : pendingStampAssetId ? 'cursor-crosshair' : '';
 
   return (
     <div
       ref={containerRef}
       className={`flex-1 bg-gray-100 relative overflow-hidden ${cursorClass}`}
+      style={{ touchAction: 'none' }}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
     >
@@ -270,17 +284,15 @@ export function EditorCanvas({ stageRef }: EditorCanvasProps) {
         </div>
       )}
 
-      {/* Eraser mode indicator */}
       {toolMode === 'eraser' && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-rose-500 text-white px-3 py-1 rounded-full text-xs font-medium z-10 pointer-events-none">
           Draw to erase overlay
         </div>
       )}
 
-      {/* Pending stamp indicator */}
       {pendingStampAssetId && backgroundImage && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-medium z-10 pointer-events-none">
-          Tap on photo to place plant
+          Press and drag to place plant
         </div>
       )}
 
