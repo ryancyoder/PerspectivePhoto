@@ -155,54 +155,74 @@ function StampThumbnail({ stamp, isActive, onTap, onDelete }: {
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const didLongPress = useRef(false);
 
-  const handleTouchStart = () => {
+  const clearTimer = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handlePointerDown = () => {
     didLongPress.current = false;
+    clearTimer();
     longPressTimer.current = setTimeout(() => {
       didLongPress.current = true;
       setShowDelete(true);
     }, 500);
   };
 
-  const handleTouchEnd = () => {
-    if (longPressTimer.current) clearTimeout(longPressTimer.current);
-    if (!didLongPress.current) {
-      // Normal tap — if delete is showing, dismiss it; otherwise select
-      if (showDelete) {
-        setShowDelete(false);
-      } else {
-        onTap();
-      }
+  const handlePointerUp = () => {
+    clearTimer();
+    // If it was a long press, don't fire tap
+    if (didLongPress.current) {
+      didLongPress.current = false;
+      return;
     }
-    didLongPress.current = false;
+    // Normal tap
+    if (showDelete) {
+      setShowDelete(false);
+    } else {
+      onTap();
+    }
   };
 
-  const handleTouchMove = () => {
-    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+  const handlePointerMove = () => {
+    clearTimer();
+  };
+
+  const handleDeleteTap = (e: React.TouchEvent | React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onDelete();
+    setShowDelete(false);
   };
 
   return (
     <div
       className={`relative w-24 h-24 shrink-0 rounded-lg cursor-pointer transition-all ${
-        showDelete ? 'ring-2 ring-red-400 animate-pulse' : isActive ? 'ring-2 ring-blue-500 bg-blue-50' : ''
+        showDelete ? 'ring-2 ring-red-400' : isActive ? 'ring-2 ring-blue-500 bg-blue-50' : ''
       }`}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      onTouchMove={handleTouchMove}
-      onMouseDown={handleTouchStart}
-      onMouseUp={handleTouchEnd}
-      onMouseLeave={() => { if (longPressTimer.current) clearTimeout(longPressTimer.current); }}
+      onTouchStart={handlePointerDown}
+      onTouchEnd={handlePointerUp}
+      onTouchMove={handlePointerMove}
+      onMouseDown={handlePointerDown}
+      onMouseUp={handlePointerUp}
+      onMouseLeave={clearTimer}
     >
       <div
         className="w-full h-full rounded-lg bg-contain bg-center bg-no-repeat"
         style={{ backgroundImage: `url(${stamp.dataUrl})` }}
       />
       {showDelete && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(); setShowDelete(false); }}
+        <div
           className="absolute inset-0 flex items-center justify-center rounded-lg bg-red-500/80"
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={handleDeleteTap}
+          onMouseDown={(e) => e.stopPropagation()}
+          onMouseUp={handleDeleteTap}
         >
           <X size={24} className="text-white" />
-        </button>
+        </div>
       )}
     </div>
   );
