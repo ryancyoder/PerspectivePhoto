@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, useEffect } from 'react';
-import { Plus, X, ClipboardPaste, RefreshCw } from 'lucide-react';
+import { Plus, ClipboardPaste, RefreshCw } from 'lucide-react';
 import { useProjectStore } from '../../store/useProjectStore';
 import { useCustomStampStore } from '../../store/useCustomStampStore';
 
@@ -24,7 +24,6 @@ export function ObjectStrip() {
   const setViewMode = useProjectStore((s) => s.setViewMode);
 
   const customStamps = useCustomStampStore((s) => s.stamps);
-  const removeStamp = useCustomStampStore((s) => s.removeStamp);
 
   const isTextures = activeSidebarTab === 'textures';
   const items = isTextures
@@ -138,7 +137,6 @@ export function ObjectStrip() {
               stamp={stamp}
               isActive={isActive}
               onTap={() => handleTap(stamp)}
-              onDelete={() => removeStamp(stamp.id)}
             />
           );
         })}
@@ -276,48 +274,22 @@ function MovementJoystick() {
   );
 }
 
-function StampThumbnail({ stamp, isActive, onTap, onDelete }: {
+function StampThumbnail({ stamp, isActive, onTap }: {
   stamp: { id: string; dataUrl: string };
   isActive: boolean;
   onTap: () => void;
-  onDelete: () => void;
 }) {
-  const [showDelete, setShowDelete] = useState(false);
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   return (
     <div
-      className={`relative w-24 h-24 shrink-0 rounded-lg cursor-pointer transition-all ${
-        showDelete ? 'ring-2 ring-red-400' : isActive ? 'ring-2 ring-blue-500 bg-blue-50' : ''
+      className={`w-24 h-24 shrink-0 rounded-lg cursor-pointer transition-all ${
+        isActive ? 'ring-2 ring-blue-500 bg-blue-50' : ''
       }`}
-      onClick={() => {
-        if (showDelete) { setShowDelete(false); } else { onTap(); }
-      }}
-      onPointerDown={() => {
-        longPressTimer.current = setTimeout(() => setShowDelete(true), 600);
-      }}
-      onPointerUp={() => {
-        if (longPressTimer.current) clearTimeout(longPressTimer.current);
-      }}
-      onPointerCancel={() => {
-        if (longPressTimer.current) clearTimeout(longPressTimer.current);
-      }}
-      onPointerMove={() => {
-        if (longPressTimer.current) clearTimeout(longPressTimer.current);
-      }}
+      onClick={onTap}
     >
       <div
         className="w-full h-full rounded-lg bg-contain bg-center bg-no-repeat pointer-events-none"
         style={{ backgroundImage: `url(${stamp.dataUrl})` }}
       />
-      {showDelete && (
-        <div
-          className="absolute inset-0 flex items-center justify-center rounded-lg bg-red-500/80"
-          onClick={(e) => { e.stopPropagation(); onDelete(); setShowDelete(false); }}
-        >
-          <X size={24} className="text-white" />
-        </div>
-      )}
     </div>
   );
 }
