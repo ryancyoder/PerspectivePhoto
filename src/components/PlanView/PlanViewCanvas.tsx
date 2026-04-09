@@ -32,6 +32,8 @@ export function PlanViewCanvas() {
   // Track stamp being placed (press-drag-release)
   const placingStampId = useRef<string | null>(null);
   const placingPointerId = useRef<number | null>(null);
+  // Cache the source stamp for stamp-gun mode so it doesn't change between taps
+  const stampGunSource = useRef<{ assetId: string; manualScale: number; rotation: number; flipX: boolean; opacity: number } | null>(null);
 
   useEffect(() => {
     if (!planView.image) { setPlanImage(null); return; }
@@ -87,28 +89,43 @@ export function PlanViewCanvas() {
 
       // Stamp-gun mode — duplicate selected plan stamp at tap position
       if (DuplicateStampMode.active) {
+        // Cache source on first use
+        if (!stampGunSource.current) {
+          const src = state.planStamps.find((s) => s.id === state.selectedStampId);
+          if (!src) return;
+          stampGunSource.current = {
+            assetId: src.assetId,
+            manualScale: src.manualScale,
+            rotation: src.rotation,
+            flipX: src.flipX,
+            opacity: src.opacity,
+          };
+        }
+
         const pos = clientToCanvas(e.clientX, e.clientY);
         if (!pos) return;
-        const srcStamp = state.planStamps.find((s) => s.id === state.selectedStampId);
-        if (!srcStamp) return;
 
         e.preventDefault();
         e.stopPropagation();
 
-        addPlanStamp(srcStamp.assetId, pos.x, pos.y);
+        const src = stampGunSource.current;
+        addPlanStamp(src.assetId, pos.x, pos.y);
         const newId = useProjectStore.getState().selectedStampId;
         if (newId) {
           useProjectStore.getState().updatePlanStamp(newId, {
-            manualScale: srcStamp.manualScale,
-            rotation: srcStamp.rotation,
-            flipX: srcStamp.flipX,
-            opacity: srcStamp.opacity,
+            manualScale: src.manualScale,
+            rotation: src.rotation,
+            flipX: src.flipX,
+            opacity: src.opacity,
           });
           placingStampId.current = newId;
           placingPointerId.current = e.pointerId;
         }
         return;
       }
+
+      // Clear stamp-gun cache when not in stamp-gun mode
+      stampGunSource.current = null;
 
       // Pending stamp placement
       if (!state.pendingStampAssetId) return;
