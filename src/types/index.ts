@@ -1,4 +1,13 @@
-export type StampCategory = 'shade-trees' | 'evergreens' | 'ornamental-trees' | 'columnar' | 'grasses' | 'shrubs' | 'perennials' | 'ground-cover' | 'textures' | 'custom';
+export type BuiltInStampCategory = 'shade-trees' | 'evergreens' | 'ornamental-trees' | 'columnar' | 'grasses' | 'shrubs' | 'perennials' | 'ground-cover' | 'textures' | 'custom';
+/** Either a built-in category id or a user-created custom subcategory id */
+export type StampCategory = BuiltInStampCategory | string;
+
+/** User-created subcategory nested under a top-level group */
+export interface CustomSubcategory {
+  id: string;
+  label: string;
+  topLevel: string;
+}
 
 export type ToolMode = 'select' | 'horizon' | 'calibrate' | 'eraser' | 'objEraser' | 'pan';
 

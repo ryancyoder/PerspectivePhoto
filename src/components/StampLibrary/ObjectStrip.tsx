@@ -1,8 +1,12 @@
 import { useCallback, useRef, useState, useEffect } from 'react';
-import { Plus, ClipboardPaste, RefreshCw } from 'lucide-react';
+import { Plus, ClipboardPaste, RefreshCw, FolderPlus, Trash2 } from 'lucide-react';
 import { useProjectStore } from '../../store/useProjectStore';
 import { useCustomStampStore, usePlanSymbolStore } from '../../store/useCustomStampStore';
-import { TOP_LEVEL_CATEGORIES, SUB_CATEGORY_LABELS } from '../../engine/categoryGroups';
+import {
+  TOP_LEVEL_CATEGORIES,
+  getSubcategoryLabel,
+  getSubcategoriesForTopLevel,
+} from '../../engine/categoryGroups';
 
 export function ObjectStrip() {
   const activeCategory = useProjectStore((s) => s.activeCategory ?? 'shade-trees');
@@ -21,9 +25,12 @@ export function ObjectStrip() {
   const isPlanView = viewMode === 'plan';
   const sourceItems = isPlanView ? planSymbols : customStamps;
 
-  const activeTopCategory = useProjectStore((s) => s.activeTopCategory ?? 'trees');
+  const activeTopCategory = useProjectStore((s) => s.activeTopCategory ?? 'deciduous');
+  const customSubcategories = useProjectStore((s) => s.customSubcategories);
+  const addCustomSubcategory = useProjectStore((s) => s.addCustomSubcategory);
+  const removeCustomSubcategory = useProjectStore((s) => s.removeCustomSubcategory);
   const topGroup = TOP_LEVEL_CATEGORIES.find((t) => t.id === activeTopCategory) ?? TOP_LEVEL_CATEGORIES[0];
-  const subcategories = topGroup.subcategories;
+  const subcategories = getSubcategoriesForTopLevel(topGroup.id, customSubcategories);
 
   const isTextures = activeSidebarTab === 'textures' && !isPlanView;
   const items = isTextures
@@ -32,7 +39,8 @@ export function ObjectStrip() {
 
   const currentId = isTextures ? 'textures' : activeCategory;
   const currentIndex = Math.max(0, subcategories.indexOf(currentId as any));
-  const currentLabel = SUB_CATEGORY_LABELS[currentId] ?? 'Shade Trees';
+  const currentLabel = getSubcategoryLabel(currentId, customSubcategories);
+  const activeSubIsCustom = customSubcategories.some((c) => c.id === currentId);
 
   const handlePaste = useCallback(async () => {
     try {
@@ -160,8 +168,8 @@ export function ObjectStrip() {
         })}
       </div>
 
-      {/* Category toggle + Joystick at bottom */}
-      <div className="shrink-0 flex flex-col items-center border-t border-gray-200/50 pt-2">
+      {/* Category toggle + add/delete + Joystick at bottom */}
+      <div className="shrink-0 flex flex-col items-center border-t border-gray-200/50 pt-2 gap-1">
         <button
           onClick={() => {
             if (subcategories.length === 0) return;
@@ -174,12 +182,43 @@ export function ObjectStrip() {
               setActiveCategory(nextSub);
             }
           }}
-          className="w-11 h-11 rounded-full bg-black/30 backdrop-blur-sm border border-white/20 flex items-center justify-center active:bg-black/50 transition-colors select-none mb-2"
+          className="w-11 h-11 rounded-full bg-black/30 backdrop-blur-sm border border-white/20 flex items-center justify-center active:bg-black/50 transition-colors select-none"
           style={{ WebkitTouchCallout: 'none' }}
           title="Next category"
         >
           <RefreshCw size={18} className="text-white" />
         </button>
+
+        {/* Add custom subcategory */}
+        <button
+          onClick={() => {
+            const label = window.prompt(`New subcategory under "${topGroup.label}":`);
+            if (label && label.trim()) {
+              addCustomSubcategory(topGroup.id, label.trim());
+            }
+          }}
+          className="w-11 h-9 rounded-full bg-black/30 backdrop-blur-sm border border-white/20 flex items-center justify-center active:bg-emerald-500 transition-colors select-none"
+          style={{ WebkitTouchCallout: 'none' }}
+          title={`Add subcategory to ${topGroup.label}`}
+        >
+          <FolderPlus size={16} className="text-white" />
+        </button>
+
+        {/* Delete current custom subcategory (only shown when active sub is custom) */}
+        {activeSubIsCustom && (
+          <button
+            onClick={() => {
+              if (window.confirm(`Delete subcategory "${currentLabel}"? Stamps in it will be orphaned but not deleted.`)) {
+                removeCustomSubcategory(currentId);
+              }
+            }}
+            className="w-11 h-9 rounded-full bg-red-500/70 backdrop-blur-sm border border-white/20 flex items-center justify-center active:bg-red-600 transition-colors select-none mb-1"
+            style={{ WebkitTouchCallout: 'none' }}
+            title={`Delete subcategory "${currentLabel}"`}
+          >
+            <Trash2 size={14} className="text-white" />
+          </button>
+        )}
       </div>
       <MovementJoystick />
     </div>

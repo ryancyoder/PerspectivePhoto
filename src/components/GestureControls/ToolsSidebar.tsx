@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect, useState } from 'react';
+import React, { useRef, useCallback, useEffect, useState } from 'react';
 import { useProjectStore } from '../../store/useProjectStore';
 import { usePlanSymbolStore } from '../../store/useCustomStampStore';
 import { DuplicateStampMode } from '../Canvas/EditorCanvas';
@@ -163,17 +163,20 @@ export function ToolsSidebar() {
 }
 
 function TopCategoryIcons() {
-  const activeTopCategory = useProjectStore((s) => s.activeTopCategory ?? 'trees');
+  const activeTopCategory = useProjectStore((s) => s.activeTopCategory ?? 'deciduous');
   const setActiveTopCategory = useProjectStore((s) => s.setActiveTopCategory);
 
-  const categories = [
-    { id: 'trees', label: 'Trees', icon: TreeIcon },
-    { id: 'plants', label: 'Plants', icon: PlantIcon },
-    { id: 'surfaces', label: 'Surfaces', icon: SurfacesIcon },
+  const categories: { id: string; label: string; icon: () => React.ReactElement }[] = [
+    { id: 'deciduous', label: 'Deciduous', icon: DeciduousIcon },
+    { id: 'evergreens', label: 'Evergreens', icon: EvergreenIcon },
+    { id: 'grasses', label: 'Grasses', icon: GrassIcon },
+    { id: 'shrubs', label: 'Shrubs', icon: ShrubIcon },
+    { id: 'perennials', label: 'Perennials', icon: PerennialIcon },
+    { id: 'other', label: 'Other', icon: OtherIcon },
   ];
 
   return (
-    <div className="w-full border-t border-gray-200/50 pt-2 pb-1 flex flex-col items-center gap-1">
+    <div className="w-full border-t border-gray-200/50 pt-1 pb-1 flex flex-col items-center gap-0.5">
       <div className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">
         Library
       </div>
@@ -181,7 +184,7 @@ function TopCategoryIcons() {
         <button
           key={id}
           onClick={() => setActiveTopCategory(id)}
-          className={`w-11 h-11 rounded-full backdrop-blur-sm border flex items-center justify-center transition-colors select-none ${
+          className={`w-9 h-9 rounded-full backdrop-blur-sm border flex items-center justify-center transition-colors select-none ${
             activeTopCategory === id
               ? 'bg-emerald-500 border-white text-white shadow-lg shadow-emerald-500/40'
               : 'bg-black/30 border-white/20 text-white active:bg-black/50'
@@ -195,32 +198,72 @@ function TopCategoryIcons() {
   );
 }
 
-function TreeIcon() {
+function DeciduousIcon() {
+  // Broad leafy canopy with single trunk
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2L7 8l2 0-3 5h3l-3 5h4v4h4v-4h4l-3-5h3l-3-5h2z" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinejoin="round">
+      <path d="M12 3c-4 0-7 3-7 6 0 1 .3 2 .8 2.8C4.2 12.5 3 14 3 15.5 3 17.5 4.8 19 7 19h10c2.2 0 4-1.5 4-3.5 0-1.5-1.2-3-2.8-3.7.5-.8.8-1.8.8-2.8 0-3-3-6-7-6z" fill="currentColor" stroke="none" />
+      <line x1="12" y1="19" x2="12" y2="22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
 
-function PlantIcon() {
+function EvergreenIcon() {
+  // Triangular pine/fir shape
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 22V12" />
-      <path d="M12 12c-3 0-6-2-6-6 3 0 6 2 6 6z" />
-      <path d="M12 12c3 0 6-2 6-6-3 0-6 2-6 6z" />
-      <path d="M12 18c-2 0-4-1-4-4 2 0 4 1 4 4z" />
-      <path d="M12 18c2 0 4-1 4-4-2 0-4 1-4 4z" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinejoin="round">
+      <path d="M12 2 L6 10 H9 L5 16 H9 L4 22 H20 L15 16 H19 L15 10 H18 Z" fill="currentColor" stroke="none" />
     </svg>
   );
 }
 
-function SurfacesIcon() {
+function GrassIcon() {
+  // Several vertical blades
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2l9 5-9 5-9-5 9-5z" />
-      <path d="M3 12l9 5 9-5" />
-      <path d="M3 17l9 5 9-5" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 22 C 5 16, 6 13, 7 10" />
+      <path d="M9 22 C 9 15, 10 11, 11 7" />
+      <path d="M14 22 C 13 15, 13 11, 12 7" />
+      <path d="M18 22 C 17 16, 17 13, 16 10" />
+    </svg>
+  );
+}
+
+function ShrubIcon() {
+  // Rounded bushy shape, wider than tall
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinejoin="round">
+      <path d="M4 18 C 3 13, 5 10, 8 10 C 8 7, 11 6, 13 8 C 15 6, 18 7, 19 10 C 22 10, 22 14, 20 18 Z" fill="currentColor" stroke="none" />
+      <line x1="4" y1="18" x2="20" y2="18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function PerennialIcon() {
+  // Flower with 5 petals
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="9" r="2" fill="currentColor" />
+      <path d="M12 5 C 10 3, 9 5, 10 7" />
+      <path d="M12 5 C 14 3, 15 5, 14 7" />
+      <path d="M8 10 C 5 10, 5 12, 8 12" />
+      <path d="M16 10 C 19 10, 19 12, 16 12" />
+      <path d="M10 12 C 10 15, 14 15, 14 12" />
+      <line x1="12" y1="11" x2="12" y2="22" />
+      <path d="M12 16 C 10 15, 8 16, 9 18" />
+      <path d="M12 18 C 14 17, 16 18, 15 20" />
+    </svg>
+  );
+}
+
+function OtherIcon() {
+  // Grid/texture pattern
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
     </svg>
   );
 }

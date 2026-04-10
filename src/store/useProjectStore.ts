@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuid } from 'uuid';
-import type { PlacedStamp, PerspectiveConfig, ToolMode, HistoryEntry, ViewMode, PlanViewConfig, Point2D } from '../types';
+import type { PlacedStamp, PerspectiveConfig, ToolMode, HistoryEntry, ViewMode, PlanViewConfig, Point2D, CustomSubcategory } from '../types';
 import { createDefaultPerspective } from '../engine/perspective';
 import { TOP_LEVEL_CATEGORIES } from '../engine/categoryGroups';
 import { saveProjectState, loadProjectState, usePlanSymbolStore } from './useCustomStampStore';
@@ -47,6 +47,9 @@ interface ProjectState {
   activeCategory: string;
   activeTopCategory: string;
   activeSidebarTab: string;
+
+  // User-created custom subcategories (nested under a top-level group)
+  customSubcategories: CustomSubcategory[];
 
   // Properties tray
   propertiesTrayOpen: boolean;
@@ -95,6 +98,10 @@ interface ProjectState {
   setActiveSidebarTab: (tab: string) => void;
   setPropertiesTrayOpen: (open: boolean) => void;
 
+  addCustomSubcategory: (topLevel: string, label: string) => string;
+  removeCustomSubcategory: (id: string) => void;
+  renameCustomSubcategory: (id: string, label: string) => void;
+
   undo: () => void;
   redo: () => void;
   pushHistory: () => void;
@@ -142,8 +149,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
   sidebarCollapsed: false,
   activeCategory: 'shade-trees',
-  activeTopCategory: 'trees',
+  activeTopCategory: 'deciduous',
   activeSidebarTab: 'objects',
+  customSubcategories: [],
   propertiesTrayOpen: false,
 
   history: [],
@@ -377,16 +385,58 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   setActiveTopCategory: (top) => {
     const group = TOP_LEVEL_CATEGORIES.find((t) => t.id === top);
     if (!group) return;
-    // Auto-select the first subcategory
-    const firstSub = group.subcategories[0];
+    // Pick the first available subcategory (built-in, falling back to custom)
+    const customForTop = get().customSubcategories.filter((c) => c.topLevel === top).map((c) => c.id);
+    const firstSub = group.subcategories[0] ?? customForTop[0];
+    if (!firstSub) return;
+    // Surfaces (textures) uses the 'textures' sidebar tab
+    const isTextures = firstSub === 'textures';
     set({
       activeTopCategory: top,
       activeCategory: firstSub,
-      activeSidebarTab: top === 'surfaces' ? 'textures' : 'objects',
+      activeSidebarTab: isTextures ? 'textures' : 'objects',
     });
   },
   setActiveSidebarTab: (tab) => set({ activeSidebarTab: tab }),
   setPropertiesTrayOpen: (open) => set({ propertiesTrayOpen: open }),
+
+  addCustomSubcategory: (topLevel, label) => {
+    const trimmed = label.trim();
+    if (!trimmed) return '';
+    const id = `custom-sub-${uuid()}`;
+    const sub: CustomSubcategory = { id, label: trimmed, topLevel };
+    set((state) => ({
+      customSubcategories: [...state.customSubcategories, sub],
+      // Switch to the newly created subcategory
+      activeTopCategory: topLevel,
+      activeCategory: id,
+      activeSidebarTab: 'objects',
+    }));
+    return id;
+  },
+
+  removeCustomSubcategory: (id) =>
+    set((state) => {
+      const remaining = state.customSubcategories.filter((c) => c.id !== id);
+      // If the deleted one was active, fall back to the top-level's first subcategory
+      let activeCategory = state.activeCategory;
+      if (state.activeCategory === id) {
+        const top = TOP_LEVEL_CATEGORIES.find((t) => t.id === state.activeTopCategory);
+        const customForTop = remaining.filter((c) => c.topLevel === state.activeTopCategory).map((c) => c.id);
+        activeCategory = (top?.subcategories[0] ?? customForTop[0]) as string;
+      }
+      return { customSubcategories: remaining, activeCategory };
+    }),
+
+  renameCustomSubcategory: (id, label) => {
+    const trimmed = label.trim();
+    if (!trimmed) return;
+    set((state) => ({
+      customSubcategories: state.customSubcategories.map((c) =>
+        c.id === id ? { ...c, label: trimmed } : c
+      ),
+    }));
+  },
 
   pushHistory: () =>
     set((state) => {
@@ -436,6 +486,7 @@ const SAVE_KEYS = [
   'backgroundImage', 'backgroundWidth', 'backgroundHeight',
   'backgroundSaturation', 'backgroundOpacity', 'backgroundBrightness', 'backgroundContrast',
   'perspective', 'stamps', 'planStamps', 'planView', 'planPixelsPerFoot', 'clusterMode',
+  'customSubcategories', 'activeTopCategory', 'activeCategory',
 ] as const;
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -454,6 +505,13 @@ useProjectStore.subscribe((state) => {
 
 // ---- Auto-load on startup ----
 
+// Map legacy top-level category ids ('trees'/'plants'/'surfaces') to the new scheme
+const LEGACY_TOP_LEVEL_MAP: Record<string, string> = {
+  trees: 'deciduous',
+  plants: 'perennials',
+  surfaces: 'other',
+};
+
 loadProjectState().then((saved) => {
   if (!saved) return;
   const updates: Record<string, any> = {};
@@ -461,6 +519,14 @@ loadProjectState().then((saved) => {
     if (saved[key] !== undefined) {
       updates[key] = saved[key];
     }
+  }
+  // Migrate legacy top-level category ids to the new scheme
+  if (typeof updates.activeTopCategory === 'string' && LEGACY_TOP_LEVEL_MAP[updates.activeTopCategory]) {
+    updates.activeTopCategory = LEGACY_TOP_LEVEL_MAP[updates.activeTopCategory];
+  }
+  if (!TOP_LEVEL_CATEGORIES.find((t) => t.id === updates.activeTopCategory)) {
+    // Unknown top-level id → drop it so default is used
+    delete updates.activeTopCategory;
   }
   if (Object.keys(updates).length > 0) {
     useProjectStore.setState(updates);
