@@ -103,66 +103,84 @@ export function PlanViewCanvas() {
   }, [setCanvasSize]);
 
   // Pinch-to-zoom + wheel zoom
+  // Use refs to avoid stale state in rapid pointer events
+  const scaleRef = useRef(stageScale);
+  const posRef = useRef(stagePos);
+  useEffect(() => { scaleRef.current = stageScale; }, [stageScale]);
+  useEffect(() => { posRef.current = stagePos; }, [stagePos]);
+
   useEffect(() => {
     if (viewLocked) return;
     const container = containerRef.current;
     if (!container) return;
 
     let lastDist = 0;
-    let lastCenter: { x: number; y: number } | null = null;
+    let lastCx = 0;
+    let lastCy = 0;
+    let active = false;
 
-    const getCenter = (t1: Touch, t2: Touch) => ({
-      x: (t1.clientX + t2.clientX) / 2,
-      y: (t1.clientY + t2.clientY) / 2,
-    });
-    const getDist = (t1: Touch, t2: Touch) => {
-      const dx = t2.clientX - t1.clientX;
-      const dy = t2.clientY - t1.clientY;
-      return Math.sqrt(dx * dx + dy * dy);
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 2) return;
+      active = true;
+      const t1 = e.touches[0], t2 = e.touches[1];
+      lastDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+      lastCx = (t1.clientX + t2.clientX) / 2;
+      lastCy = (t1.clientY + t2.clientY) / 2;
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length !== 2) return;
+      if (e.touches.length !== 2) { active = false; return; }
       e.preventDefault();
       e.stopPropagation();
       const t1 = e.touches[0], t2 = e.touches[1];
-      const newDist = getDist(t1, t2);
-      const newCenter = getCenter(t1, t2);
+      const newDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+      const newCx = (t1.clientX + t2.clientX) / 2;
+      const newCy = (t1.clientY + t2.clientY) / 2;
 
-      if (lastDist === 0) {
+      if (!active || lastDist === 0) {
         lastDist = newDist;
-        lastCenter = newCenter;
+        lastCx = newCx;
+        lastCy = newCy;
+        active = true;
         return;
       }
 
       const rect = container.getBoundingClientRect();
-      const cx = newCenter.x - rect.left;
-      const cy = newCenter.y - rect.top;
+      const cx = newCx - rect.left;
+      const cy = newCy - rect.top;
 
-      setStageScale((oldScale) => {
-        const factor = newDist / lastDist;
-        const newScale = Math.max(0.1, Math.min(8, oldScale * factor));
-        // Keep the point under the fingers stable
-        setStagePos((oldPos) => {
-          const imgX = (cx - oldPos.x) / oldScale;
-          const imgY = (cy - oldPos.y) / oldScale;
-          const dx = lastCenter ? (newCenter.x - lastCenter.x) : 0;
-          const dy = lastCenter ? (newCenter.y - lastCenter.y) : 0;
-          return {
-            x: cx - imgX * newScale + dx,
-            y: cy - imgY * newScale + dy,
-          };
-        });
-        return newScale;
-      });
+      const oldScale = scaleRef.current;
+      const oldPos = posRef.current;
+
+      // Compute zoom factor from distance change
+      const factor = newDist / lastDist;
+      const newScale = Math.max(0.1, Math.min(8, oldScale * factor));
+
+      // Pan delta from center movement
+      const panDx = newCx - lastCx;
+      const panDy = newCy - lastCy;
+
+      // Keep the point under the fingers stable during zoom
+      const imgX = (cx - oldPos.x) / oldScale;
+      const imgY = (cy - oldPos.y) / oldScale;
+      const newPos = {
+        x: cx - imgX * newScale + panDx,
+        y: cy - imgY * newScale + panDy,
+      };
+
+      scaleRef.current = newScale;
+      posRef.current = newPos;
+      setStageScale(newScale);
+      setStagePos(newPos);
 
       lastDist = newDist;
-      lastCenter = newCenter;
+      lastCx = newCx;
+      lastCy = newCy;
     };
 
     const onTouchEnd = () => {
+      active = false;
       lastDist = 0;
-      lastCenter = null;
     };
 
     const onWheel = (e: WheelEvent) => {
@@ -170,27 +188,33 @@ export function PlanViewCanvas() {
       const rect = container.getBoundingClientRect();
       const cx = e.clientX - rect.left;
       const cy = e.clientY - rect.top;
-      setStageScale((oldScale) => {
-        const factor = e.deltaY < 0 ? 1.1 : 0.9;
-        const newScale = Math.max(0.1, Math.min(8, oldScale * factor));
-        setStagePos((oldPos) => {
-          const imgX = (cx - oldPos.x) / oldScale;
-          const imgY = (cy - oldPos.y) / oldScale;
-          return {
-            x: cx - imgX * newScale,
-            y: cy - imgY * newScale,
-          };
-        });
-        return newScale;
-      });
+
+      const oldScale = scaleRef.current;
+      const oldPos = posRef.current;
+      const factor = e.deltaY < 0 ? 1.1 : 0.9;
+      const newScale = Math.max(0.1, Math.min(8, oldScale * factor));
+
+      const imgX = (cx - oldPos.x) / oldScale;
+      const imgY = (cy - oldPos.y) / oldScale;
+      const newPos = {
+        x: cx - imgX * newScale,
+        y: cy - imgY * newScale,
+      };
+
+      scaleRef.current = newScale;
+      posRef.current = newPos;
+      setStageScale(newScale);
+      setStagePos(newPos);
     };
 
+    container.addEventListener('touchstart', onTouchStart, { passive: true });
     container.addEventListener('touchmove', onTouchMove, { passive: false });
     container.addEventListener('touchend', onTouchEnd);
     container.addEventListener('touchcancel', onTouchEnd);
     container.addEventListener('wheel', onWheel, { passive: false });
 
     return () => {
+      container.removeEventListener('touchstart', onTouchStart);
       container.removeEventListener('touchmove', onTouchMove);
       container.removeEventListener('touchend', onTouchEnd);
       container.removeEventListener('touchcancel', onTouchEnd);
