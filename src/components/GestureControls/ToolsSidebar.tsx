@@ -155,7 +155,73 @@ export function ToolsSidebar() {
       <UndoRedoButtons />
 
       <div className="flex-1" />
+
+      {/* Top-level category icons (lower half) */}
+      <TopCategoryIcons />
     </div>
+  );
+}
+
+function TopCategoryIcons() {
+  const activeTopCategory = useProjectStore((s) => s.activeTopCategory ?? 'trees');
+  const setActiveTopCategory = useProjectStore((s) => s.setActiveTopCategory);
+
+  const categories = [
+    { id: 'trees', label: 'Trees', icon: TreeIcon },
+    { id: 'plants', label: 'Plants', icon: PlantIcon },
+    { id: 'surfaces', label: 'Surfaces', icon: SurfacesIcon },
+  ];
+
+  return (
+    <div className="w-full border-t border-gray-200/50 pt-2 pb-1 flex flex-col items-center gap-1">
+      <div className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">
+        Library
+      </div>
+      {categories.map(({ id, label, icon: Icon }) => (
+        <button
+          key={id}
+          onClick={() => setActiveTopCategory(id)}
+          className={`w-11 h-11 rounded-full backdrop-blur-sm border flex items-center justify-center transition-colors select-none ${
+            activeTopCategory === id
+              ? 'bg-emerald-500 border-white text-white shadow-lg shadow-emerald-500/40'
+              : 'bg-black/30 border-white/20 text-white active:bg-black/50'
+          }`}
+          title={label}
+        >
+          <Icon />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function TreeIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2L7 8l2 0-3 5h3l-3 5h4v4h4v-4h4l-3-5h3l-3-5h2z" />
+    </svg>
+  );
+}
+
+function PlantIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22V12" />
+      <path d="M12 12c-3 0-6-2-6-6 3 0 6 2 6 6z" />
+      <path d="M12 12c3 0 6-2 6-6-3 0-6 2-6 6z" />
+      <path d="M12 18c-2 0-4-1-4-4 2 0 4 1 4 4z" />
+      <path d="M12 18c2 0 4-1 4-4-2 0-4 1-4 4z" />
+    </svg>
+  );
+}
+
+function SurfacesIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2l9 5-9 5-9-5 9-5z" />
+      <path d="M3 12l9 5 9-5" />
+      <path d="M3 17l9 5 9-5" />
+    </svg>
   );
 }
 

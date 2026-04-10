@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { v4 as uuid } from 'uuid';
 import type { PlacedStamp, PerspectiveConfig, ToolMode, HistoryEntry, ViewMode, PlanViewConfig, Point2D } from '../types';
 import { createDefaultPerspective } from '../engine/perspective';
+import { TOP_LEVEL_CATEGORIES } from '../engine/categoryGroups';
 import { saveProjectState, loadProjectState, usePlanSymbolStore } from './useCustomStampStore';
 
 interface ProjectState {
@@ -44,6 +45,7 @@ interface ProjectState {
   // Sidebar
   sidebarCollapsed: boolean;
   activeCategory: string;
+  activeTopCategory: string;
   activeSidebarTab: string;
 
   // Properties tray
@@ -89,6 +91,7 @@ interface ProjectState {
   flattenOverlay: (compositeDataUrl: string) => void;
   toggleSidebar: () => void;
   setActiveCategory: (cat: string) => void;
+  setActiveTopCategory: (top: string) => void;
   setActiveSidebarTab: (tab: string) => void;
   setPropertiesTrayOpen: (open: boolean) => void;
 
@@ -139,6 +142,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
   sidebarCollapsed: false,
   activeCategory: 'shade-trees',
+  activeTopCategory: 'trees',
   activeSidebarTab: 'objects',
   propertiesTrayOpen: false,
 
@@ -370,6 +374,17 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     })),
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
   setActiveCategory: (cat) => set({ activeCategory: cat }),
+  setActiveTopCategory: (top) => {
+    const group = TOP_LEVEL_CATEGORIES.find((t) => t.id === top);
+    if (!group) return;
+    // Auto-select the first subcategory
+    const firstSub = group.subcategories[0];
+    set({
+      activeTopCategory: top,
+      activeCategory: firstSub,
+      activeSidebarTab: top === 'surfaces' ? 'textures' : 'objects',
+    });
+  },
   setActiveSidebarTab: (tab) => set({ activeSidebarTab: tab }),
   setPropertiesTrayOpen: (open) => set({ propertiesTrayOpen: open }),
 

@@ -2,18 +2,7 @@ import { useCallback, useRef, useState, useEffect } from 'react';
 import { Plus, ClipboardPaste, RefreshCw } from 'lucide-react';
 import { useProjectStore } from '../../store/useProjectStore';
 import { useCustomStampStore, usePlanSymbolStore } from '../../store/useCustomStampStore';
-
-const CATEGORIES = [
-  { id: 'shade-trees', label: 'Shade Trees' },
-  { id: 'evergreens', label: 'Evergreens' },
-  { id: 'ornamental-trees', label: 'Ornamental' },
-  { id: 'columnar', label: 'Columnar' },
-  { id: 'grasses', label: 'Grasses' },
-  { id: 'shrubs', label: 'Shrubs' },
-  { id: 'perennials', label: 'Perennials' },
-  { id: 'ground-cover', label: 'Ground Cover' },
-  { id: 'textures', label: 'Surfaces' },
-];
+import { TOP_LEVEL_CATEGORIES, SUB_CATEGORY_LABELS } from '../../engine/categoryGroups';
 
 export function ObjectStrip() {
   const activeCategory = useProjectStore((s) => s.activeCategory ?? 'shade-trees');
@@ -32,14 +21,18 @@ export function ObjectStrip() {
   const isPlanView = viewMode === 'plan';
   const sourceItems = isPlanView ? planSymbols : customStamps;
 
+  const activeTopCategory = useProjectStore((s) => s.activeTopCategory ?? 'trees');
+  const topGroup = TOP_LEVEL_CATEGORIES.find((t) => t.id === activeTopCategory) ?? TOP_LEVEL_CATEGORIES[0];
+  const subcategories = topGroup.subcategories;
+
   const isTextures = activeSidebarTab === 'textures' && !isPlanView;
   const items = isTextures
     ? sourceItems.filter((s) => s.category === 'textures' || s.name.startsWith('tex-'))
     : sourceItems.filter((s) => s.category === activeCategory && !s.name.startsWith('tex-'));
 
   const currentId = isTextures ? 'textures' : activeCategory;
-  const currentIndex = CATEGORIES.findIndex((c) => c.id === currentId);
-  const currentLabel = CATEGORIES[currentIndex]?.label ?? 'Shade Trees';
+  const currentIndex = Math.max(0, subcategories.indexOf(currentId as any));
+  const currentLabel = SUB_CATEGORY_LABELS[currentId] ?? 'Shade Trees';
 
   const handlePaste = useCallback(async () => {
     try {
@@ -135,6 +128,9 @@ export function ObjectStrip() {
             2D Symbols
           </div>
         )}
+        <div className="text-[8px] font-bold text-gray-400 text-center uppercase tracking-widest">
+          {topGroup.label}
+        </div>
         <div className="text-[10px] font-semibold text-gray-500 text-center uppercase tracking-wider">
           {currentLabel}
         </div>
@@ -168,13 +164,14 @@ export function ObjectStrip() {
       <div className="shrink-0 flex flex-col items-center border-t border-gray-200/50 pt-2">
         <button
           onClick={() => {
-            const nextIndex = (currentIndex + 1) % CATEGORIES.length;
-            const next = CATEGORIES[nextIndex];
-            if (next.id === 'textures') {
+            if (subcategories.length === 0) return;
+            const nextIndex = (currentIndex + 1) % subcategories.length;
+            const nextSub = subcategories[nextIndex];
+            if (nextSub === 'textures') {
               setActiveSidebarTab('textures');
             } else {
               setActiveSidebarTab('objects');
-              setActiveCategory(next.id);
+              setActiveCategory(nextSub);
             }
           }}
           className="w-11 h-11 rounded-full bg-black/30 backdrop-blur-sm border border-white/20 flex items-center justify-center active:bg-black/50 transition-colors select-none mb-2"
