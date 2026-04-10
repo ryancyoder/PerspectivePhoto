@@ -38,7 +38,8 @@ interface ProjectState {
   // View
   viewMode: ViewMode;
   planView: PlanViewConfig;
-  planPixelsPerFoot: number | null; // scale calibration for plan view
+  planPixelsPerFoot: number | null;
+  clusterMode: boolean;
 
   // Sidebar
   sidebarCollapsed: boolean;
@@ -78,6 +79,7 @@ interface ProjectState {
   setMoveOnly: (on: boolean) => void;
   setViewMode: (mode: ViewMode) => void;
   setPlanPixelsPerFoot: (ppf: number | null) => void;
+  setClusterMode: (on: boolean) => void;
   setPlanImage: (dataUrl: string, width: number, height: number) => void;
   setPlanSelection: (dataUrl: string, width: number, height: number) => void;
   setPlanCorners: (corners: [Point2D, Point2D, Point2D, Point2D]) => void;
@@ -122,6 +124,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   moveOnly: false,
   viewMode: 'photo',
   planPixelsPerFoot: null,
+  clusterMode: false,
   planView: {
     image: null,
     imageWidth: 0,
@@ -289,6 +292,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   setMoveOnly: (on) => set({ moveOnly: on, pendingStampAssetId: null }),
   setViewMode: (mode) => set({ viewMode: mode }),
   setPlanPixelsPerFoot: (ppf) => set({ planPixelsPerFoot: ppf }),
+  setClusterMode: (on) => set({ clusterMode: on }),
 
   setPlanImage: (dataUrl, width, height) =>
     set((state) => ({
@@ -416,7 +420,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 const SAVE_KEYS = [
   'backgroundImage', 'backgroundWidth', 'backgroundHeight',
   'backgroundSaturation', 'backgroundOpacity', 'backgroundBrightness', 'backgroundContrast',
-  'perspective', 'stamps', 'planStamps', 'planView', 'planPixelsPerFoot',
+  'perspective', 'stamps', 'planStamps', 'planView', 'planPixelsPerFoot', 'clusterMode',
 ] as const;
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;

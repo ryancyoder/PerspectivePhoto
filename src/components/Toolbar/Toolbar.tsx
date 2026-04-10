@@ -9,6 +9,7 @@ import {
   PersonStanding,
   Eraser,
   CircleOff,
+  Combine,
   Image as ImageIcon,
   LayoutGrid,
   Stamp,
@@ -42,6 +43,8 @@ export function Toolbar({ stageRef }: ToolbarProps) {
   const planStamps = useProjectStore((s) => s.planStamps);
   const removeStamp = useProjectStore((s) => s.removeStamp);
   const isPlan = viewMode === 'plan';
+  const clusterMode = useProjectStore((s) => s.clusterMode);
+  const setClusterMode = useProjectStore((s) => s.setClusterMode);
   const selectedPlanStamp = isPlan && selectedStampId ? planStamps.find((s) => s.id === selectedStampId) : null;
   const undo = useProjectStore((s) => s.undo);
   const redo = useProjectStore((s) => s.redo);
@@ -197,6 +200,17 @@ export function Toolbar({ stageRef }: ToolbarProps) {
           <Icon size={20} />
         </ToolButton>
       ))}
+
+      {/* Cluster outline toggle (plan view only) */}
+      {isPlan && (
+        <ToolButton
+          onClick={() => setClusterMode(!clusterMode)}
+          active={clusterMode}
+          label="Cluster Outlines"
+        >
+          <Combine size={20} />
+        </ToolButton>
+      )}
 
       <div className="w-px h-8 bg-gray-200 mx-1" />
 

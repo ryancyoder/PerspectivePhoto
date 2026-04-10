@@ -4,6 +4,7 @@ import Konva from 'konva';
 import { useProjectStore } from '../../store/useProjectStore';
 import { usePlanSymbolStore } from '../../store/useCustomStampStore';
 import { PlanStamp } from './PlanStamp';
+import { ClusterOverlay } from './ClusterOverlay';
 import { DuplicateStampMode } from '../Canvas/EditorCanvas';
 import type { Point2D } from '../../types';
 
@@ -19,6 +20,7 @@ export function PlanViewCanvas() {
   const selectStamp = useProjectStore((s) => s.selectStamp);
   const addPlanStamp = useProjectStore((s) => s.addPlanStamp);
   const removePlanStamp = useProjectStore((s) => s.removePlanStamp);
+  const clusterMode = useProjectStore((s) => s.clusterMode);
   const setCanvasSize = useProjectStore((s) => s.setCanvasSize);
   const setPlanSelection = useProjectStore((s) => s.setPlanSelection);
 
@@ -621,6 +623,13 @@ export function PlanViewCanvas() {
               <PlanStamp key={stamp.id} stamp={stamp} isSelected={stamp.id === selectedStampId} />
             ))}
           </Layer>
+
+          {/* Cluster outlines (above stamps, non-interactive) */}
+          {clusterMode && (
+            <Layer listening={false}>
+              <ClusterOverlay stamps={sortedPlanStamps} />
+            </Layer>
+          )}
 
           {/* Scale measurement points */}
           <Layer listening={false}>
