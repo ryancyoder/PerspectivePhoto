@@ -1,4 +1,4 @@
-export type StampCategory = 'shade-trees' | 'ornamental-trees' | 'columnar' | 'grasses' | 'shrubs' | 'perennials' | 'ground-cover' | 'textures' | 'custom';
+export type StampCategory = 'shade-trees' | 'evergreens' | 'ornamental-trees' | 'columnar' | 'grasses' | 'shrubs' | 'perennials' | 'ground-cover' | 'textures' | 'custom';
 
 export type ToolMode = 'select' | 'horizon' | 'calibrate' | 'eraser' | 'objEraser' | 'pan';
 

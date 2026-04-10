@@ -5,6 +5,7 @@ import { useCustomStampStore, usePlanSymbolStore } from '../../store/useCustomSt
 
 const CATEGORIES = [
   { id: 'shade-trees', label: 'Shade Trees' },
+  { id: 'evergreens', label: 'Evergreens' },
   { id: 'ornamental-trees', label: 'Ornamental' },
   { id: 'columnar', label: 'Columnar' },
   { id: 'grasses', label: 'Grasses' },

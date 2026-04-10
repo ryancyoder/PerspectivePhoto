@@ -53,7 +53,7 @@ export function PlanViewCanvas() {
   const stampGunSource = useRef<{ assetId: string; manualScale: number; rotation: number; flipX: boolean; opacity: number } | null>(null);
 
   // Sort plan stamps by category render order:
-  // ground-cover (bottom) → perennials → shrubs → grasses → columnar → ornamental → shade-trees (top)
+  // ground-cover (bottom) → perennials → shrubs → grasses → columnar → ornamental → evergreens → shade-trees (top)
   const CATEGORY_ORDER: Record<string, number> = {
     'ground-cover': 0,
     'perennials': 1,
@@ -61,7 +61,8 @@ export function PlanViewCanvas() {
     'grasses': 3,
     'columnar': 4,
     'ornamental-trees': 5,
-    'shade-trees': 6,
+    'evergreens': 6,
+    'shade-trees': 7,
     'custom': 3,
     'textures': -1,
   };
