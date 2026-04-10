@@ -25,6 +25,7 @@ export function PlanViewCanvas() {
   const [planImage, setPlanImage] = useState<HTMLImageElement | null>(null);
   const [stageScale, setStageScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
+  const [viewLocked, setViewLocked] = useState(false);
 
   const planPixelsPerFoot = useProjectStore((s) => s.planPixelsPerFoot);
   const setPlanPixelsPerFoot = useProjectStore((s) => s.setPlanPixelsPerFoot);
@@ -76,25 +77,126 @@ export function PlanViewCanvas() {
     img.onload = () => setPlanImage(img);
   }, [planView.image]);
 
+  // Initial fit — only runs when image changes
+  useEffect(() => {
+    if (!containerRef.current || !planView.imageWidth || !planView.imageHeight) return;
+    const { clientWidth, clientHeight } = containerRef.current;
+    const s = Math.min(clientWidth / planView.imageWidth, clientHeight / planView.imageHeight, 1);
+    setStageScale(s);
+    setStagePos({
+      x: (clientWidth - planView.imageWidth * s) / 2,
+      y: (clientHeight - planView.imageHeight * s) / 2,
+    });
+  }, [planView.image]);
+
+  // Canvas size tracking
   useEffect(() => {
     const updateSize = () => {
       if (!containerRef.current) return;
       const { clientWidth, clientHeight } = containerRef.current;
       setCanvasSize(clientWidth, clientHeight);
-      if (planView.imageWidth && planView.imageHeight) {
-        const s = Math.min(clientWidth / planView.imageWidth, clientHeight / planView.imageHeight, 1);
-        setStageScale(s);
-        setStagePos({
-          x: (clientWidth - planView.imageWidth * s) / 2,
-          y: (clientHeight - planView.imageHeight * s) / 2,
-        });
-      }
     };
     updateSize();
     const observer = new ResizeObserver(updateSize);
     if (containerRef.current) observer.observe(containerRef.current);
     return () => observer.disconnect();
-  }, [planView.imageWidth, planView.imageHeight, setCanvasSize]);
+  }, [setCanvasSize]);
+
+  // Pinch-to-zoom + wheel zoom
+  useEffect(() => {
+    if (viewLocked) return;
+    const container = containerRef.current;
+    if (!container) return;
+
+    let lastDist = 0;
+    let lastCenter: { x: number; y: number } | null = null;
+
+    const getCenter = (t1: Touch, t2: Touch) => ({
+      x: (t1.clientX + t2.clientX) / 2,
+      y: (t1.clientY + t2.clientY) / 2,
+    });
+    const getDist = (t1: Touch, t2: Touch) => {
+      const dx = t2.clientX - t1.clientX;
+      const dy = t2.clientY - t1.clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 2) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const t1 = e.touches[0], t2 = e.touches[1];
+      const newDist = getDist(t1, t2);
+      const newCenter = getCenter(t1, t2);
+
+      if (lastDist === 0) {
+        lastDist = newDist;
+        lastCenter = newCenter;
+        return;
+      }
+
+      const rect = container.getBoundingClientRect();
+      const cx = newCenter.x - rect.left;
+      const cy = newCenter.y - rect.top;
+
+      setStageScale((oldScale) => {
+        const factor = newDist / lastDist;
+        const newScale = Math.max(0.1, Math.min(8, oldScale * factor));
+        // Keep the point under the fingers stable
+        setStagePos((oldPos) => {
+          const imgX = (cx - oldPos.x) / oldScale;
+          const imgY = (cy - oldPos.y) / oldScale;
+          const dx = lastCenter ? (newCenter.x - lastCenter.x) : 0;
+          const dy = lastCenter ? (newCenter.y - lastCenter.y) : 0;
+          return {
+            x: cx - imgX * newScale + dx,
+            y: cy - imgY * newScale + dy,
+          };
+        });
+        return newScale;
+      });
+
+      lastDist = newDist;
+      lastCenter = newCenter;
+    };
+
+    const onTouchEnd = () => {
+      lastDist = 0;
+      lastCenter = null;
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = container.getBoundingClientRect();
+      const cx = e.clientX - rect.left;
+      const cy = e.clientY - rect.top;
+      setStageScale((oldScale) => {
+        const factor = e.deltaY < 0 ? 1.1 : 0.9;
+        const newScale = Math.max(0.1, Math.min(8, oldScale * factor));
+        setStagePos((oldPos) => {
+          const imgX = (cx - oldPos.x) / oldScale;
+          const imgY = (cy - oldPos.y) / oldScale;
+          return {
+            x: cx - imgX * newScale,
+            y: cy - imgY * newScale,
+          };
+        });
+        return newScale;
+      });
+    };
+
+    container.addEventListener('touchmove', onTouchMove, { passive: false });
+    container.addEventListener('touchend', onTouchEnd);
+    container.addEventListener('touchcancel', onTouchEnd);
+    container.addEventListener('wheel', onWheel, { passive: false });
+
+    return () => {
+      container.removeEventListener('touchmove', onTouchMove);
+      container.removeEventListener('touchend', onTouchEnd);
+      container.removeEventListener('touchcancel', onTouchEnd);
+      container.removeEventListener('wheel', onWheel);
+    };
+  }, [viewLocked]);
 
   const clientToCanvas = useCallback((clientX: number, clientY: number) => {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -132,6 +234,8 @@ export function PlanViewCanvas() {
 
     const handlePointerDown = (e: PointerEvent) => {
       if (!isOverCanvas(e)) return;
+      // Skip during multi-touch (pinch zoom)
+      if (e.pointerType === 'touch' && (e as any).isPrimary === false) return;
       const state = useProjectStore.getState();
 
       // Object eraser mode
@@ -371,6 +475,47 @@ export function PlanViewCanvas() {
           {scaleMode ? 'Exit Scale' : planPixelsPerFoot ? `Scale: ${Math.round(planPixelsPerFoot)}px/ft` : 'Set Scale'}
         </button>
       </div>
+
+      {/* Zoom controls (top-right) */}
+      {planView.image && (
+        <div className="absolute top-2 right-2 z-10 flex gap-1">
+          <button
+            onClick={() => {
+              if (!containerRef.current || !planView.imageWidth) return;
+              const { clientWidth, clientHeight } = containerRef.current;
+              const s = Math.min(clientWidth / planView.imageWidth, clientHeight / planView.imageHeight, 1);
+              setStageScale(s);
+              setStagePos({
+                x: (clientWidth - planView.imageWidth * s) / 2,
+                y: (clientHeight - planView.imageHeight * s) / 2,
+              });
+            }}
+            className="w-9 h-9 rounded-full bg-white border border-gray-300 shadow flex items-center justify-center text-gray-600 text-[10px] font-semibold"
+            title="Fit to view"
+          >
+            FIT
+          </button>
+          <button
+            onClick={() => setViewLocked(!viewLocked)}
+            className={`w-9 h-9 rounded-full border shadow flex items-center justify-center ${
+              viewLocked ? 'bg-red-500 text-white border-red-600' : 'bg-white text-gray-600 border-gray-300'
+            }`}
+            title={viewLocked ? 'Unlock view' : 'Lock view'}
+          >
+            {viewLocked ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+              </svg>
+            )}
+          </button>
+        </div>
+      )}
 
       {polygonMode && points.length > 0 && !isClosed && (
         <div className="absolute top-10 left-1/2 -translate-x-1/2 z-10 flex gap-2">
