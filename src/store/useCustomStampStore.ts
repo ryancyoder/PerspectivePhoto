@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuid } from 'uuid';
-import type { CustomStamp, StampCategory } from '../types';
+import type { CustomStamp, StampCategory, PlantMeta } from '../types';
 
 const DB_NAME = 'perspectivephoto';
 const DB_VERSION = 3;
@@ -113,6 +113,7 @@ interface CustomStampLibrary {
   addStampFromDataUrl: (name: string, dataUrl: string, width: number, height: number, category?: StampCategory) => string;
   removeStamp: (id: string) => void;
   renameStamp: (id: string, name: string) => void;
+  updateStampMeta: (id: string, meta: PlantMeta) => void;
   getStamp: (id: string) => CustomStamp | undefined;
   exportLibrary: () => void;
   importLibrary: () => void;
@@ -190,6 +191,14 @@ export const useCustomStampStore = create<CustomStampLibrary>((set, get) => ({
   renameStamp: (id, name) => {
     set((state) => ({
       stamps: state.stamps.map((s) => (s.id === id ? { ...s, name } : s)),
+    }));
+    const stamp = get().stamps.find((s) => s.id === id);
+    if (stamp) dbPut(stamp, STORE_NAME);
+  },
+
+  updateStampMeta: (id, meta) => {
+    set((state) => ({
+      stamps: state.stamps.map((s) => (s.id === id ? { ...s, ...meta } : s)),
     }));
     const stamp = get().stamps.find((s) => s.id === id);
     if (stamp) dbPut(stamp, STORE_NAME);
@@ -290,6 +299,7 @@ interface PlanSymbolLibrary {
   addSymbolWithCategory: (file: File, category: StampCategory) => Promise<string>;
   addSymbolFromDataUrl: (name: string, dataUrl: string, width: number, height: number, category?: StampCategory) => string;
   removeSymbol: (id: string) => void;
+  updateSymbolMeta: (id: string, meta: PlantMeta) => void;
   getSymbol: (id: string) => CustomStamp | undefined;
   setSymbolDefaultScale: (id: string, scale: number) => void;
   exportLibrary: () => void;
@@ -353,6 +363,14 @@ export const usePlanSymbolStore = create<PlanSymbolLibrary>((set, get) => ({
   removeSymbol: (id) => {
     set((state) => ({ symbols: state.symbols.filter((s) => s.id !== id) }));
     dbDelete(id, PLAN_STORE_NAME);
+  },
+
+  updateSymbolMeta: (id, meta) => {
+    set((state) => ({
+      symbols: state.symbols.map((s) => (s.id === id ? { ...s, ...meta } : s)),
+    }));
+    const sym = get().symbols.find((s) => s.id === id);
+    if (sym) dbPut(sym, PLAN_STORE_NAME);
   },
 
   getSymbol: (id) => get().symbols.find((s) => s.id === id),

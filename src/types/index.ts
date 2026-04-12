@@ -46,6 +46,20 @@ export interface CustomStamp {
   naturalHeight: number;
   createdAt: number;
   defaultScale?: number;  // locked-in default manualScale for plan view placement
+
+  // Plant metadata (user-editable)
+  botanicalName?: string;
+  commonName?: string;
+  notes?: string;
+}
+
+/** The editable metadata fields on a CustomStamp */
+export interface PlantMeta {
+  name?: string;
+  botanicalName?: string;
+  commonName?: string;
+  category?: StampCategory;
+  notes?: string;
 }
 
 export interface PlacedStamp {

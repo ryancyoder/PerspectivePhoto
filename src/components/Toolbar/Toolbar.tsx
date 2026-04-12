@@ -15,6 +15,7 @@ import {
   Stamp,
   FolderDown,
   FolderUp,
+  Table2,
 } from 'lucide-react';
 import { useCustomStampStore } from '../../store/useCustomStampStore';
 import { SettingsMenu } from '../SettingsMenu';
@@ -25,9 +26,10 @@ import type { ToolMode } from '../../types';
 
 interface ToolbarProps {
   stageRef: React.RefObject<Konva.Stage | null>;
+  onOpenPlantTable?: () => void;
 }
 
-export function Toolbar({ stageRef }: ToolbarProps) {
+export function Toolbar({ stageRef, onOpenPlantTable }: ToolbarProps) {
 
   const toolMode = useProjectStore((s) => s.toolMode);
   const setToolMode = useProjectStore((s) => s.setToolMode);
@@ -261,13 +263,18 @@ export function Toolbar({ stageRef }: ToolbarProps) {
         <PlanDiameterDisplay stamp={selectedPlanStamp ?? null} selectedStampId={selectedStampId} isPlan={isPlan} />
       </div>
 
-      {/* Library import/export */}
+      {/* Library import/export + plant table */}
       <ToolButton onClick={() => useCustomStampStore.getState().importLibrary()} label="Import Library">
         <FolderUp size={20} />
       </ToolButton>
       <ToolButton onClick={() => useCustomStampStore.getState().exportLibrary()} label="Export Library">
         <FolderDown size={20} />
       </ToolButton>
+      {onOpenPlantTable && (
+        <ToolButton onClick={onOpenPlantTable} label="Plant Database">
+          <Table2 size={20} />
+        </ToolButton>
+      )}
 
       <div className="w-px h-8 bg-gray-200 mx-1" />
 
