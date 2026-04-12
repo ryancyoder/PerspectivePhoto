@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { X } from 'lucide-react';
+import { X, Trash2 } from 'lucide-react';
 import { useCustomStampStore, usePlanSymbolStore } from '../store/useCustomStampStore';
 import { useProjectStore } from '../store/useProjectStore';
 import { getSubcategoryLabel, getSubcategoriesForTopLevel, TOP_LEVEL_CATEGORIES } from '../engine/categoryGroups';
@@ -13,10 +13,13 @@ export function PlantTable({ onClose }: { onClose: () => void }) {
   const planSymbols = usePlanSymbolStore((s) => s.symbols);
   const updateStampMeta = useCustomStampStore((s) => s.updateStampMeta);
   const updateSymbolMeta = usePlanSymbolStore((s) => s.updateSymbolMeta);
+  const removeStamp = useCustomStampStore((s) => s.removeStamp);
+  const removeSymbol = usePlanSymbolStore((s) => s.removeSymbol);
 
   const isPlan = viewMode === 'plan';
   const items = isPlan ? planSymbols : perspStamps;
   const doUpdate = isPlan ? updateSymbolMeta : updateStampMeta;
+  const doRemove = isPlan ? removeSymbol : removeStamp;
 
   // Exclude textures from the table — those aren't plants
   const plants = items.filter((s) => s.category !== 'textures' && !s.name.startsWith('tex-'));
@@ -61,6 +64,7 @@ export function PlantTable({ onClose }: { onClose: () => void }) {
                 <th className="text-left px-2 py-2 font-medium text-gray-500">Common Name</th>
                 <th className="text-left px-2 py-2 font-medium text-gray-500 w-40">Category</th>
                 <th className="text-left px-2 py-2 font-medium text-gray-500">Notes</th>
+                <th className="w-12 px-2 py-2"></th>
               </tr>
             </thead>
             <tbody>
@@ -69,12 +73,13 @@ export function PlantTable({ onClose }: { onClose: () => void }) {
                   key={plant.id}
                   plant={plant}
                   onUpdate={(meta) => doUpdate(plant.id, meta)}
+                  onDelete={() => doRemove(plant.id)}
                   allSubcategories={allSubcategories}
                 />
               ))}
               {plants.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-gray-400">
+                  <td colSpan={7} className="text-center py-12 text-gray-400">
                     No {isPlan ? 'symbols' : 'plants'} uploaded yet
                   </td>
                 </tr>
@@ -90,14 +95,16 @@ export function PlantTable({ onClose }: { onClose: () => void }) {
 function PlantRow({
   plant,
   onUpdate,
+  onDelete,
   allSubcategories,
 }: {
   plant: CustomStamp;
   onUpdate: (meta: PlantMeta) => void;
+  onDelete: () => void;
   allSubcategories: { id: string; label: string }[];
 }) {
   return (
-    <tr className="border-b border-gray-100 hover:bg-gray-50/50">
+    <tr className="border-b border-gray-100 hover:bg-gray-50/50 group">
       {/* Thumbnail */}
       <td className="px-2 py-1.5">
         <div
@@ -149,6 +156,20 @@ function PlantRow({
           placeholder="Notes"
           onCommit={(v) => onUpdate({ notes: v })}
         />
+      </td>
+      {/* Delete */}
+      <td className="px-2 py-1.5">
+        <button
+          onClick={() => {
+            if (window.confirm(`Delete "${plant.name}"? This cannot be undone.`)) {
+              onDelete();
+            }
+          }}
+          className="w-8 h-8 rounded-full flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+          title="Delete"
+        >
+          <Trash2 size={16} />
+        </button>
       </td>
     </tr>
   );
