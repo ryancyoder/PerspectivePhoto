@@ -65,10 +65,17 @@ export function LightingOverlay({
     oCtx.clearRect(0, 0, w, h);
 
     // Parse the overlay color but override opacity
+    // Use a solid color and control darkness entirely via globalAlpha
+    // Stack two passes so higher values can reach near-total darkness
     oCtx.globalCompositeOperation = 'source-over';
-    oCtx.fillStyle = overlayColor;
-    oCtx.globalAlpha = overlayOpacity;
+    oCtx.fillStyle = 'rgb(20, 0, 40)';
+    oCtx.globalAlpha = Math.min(overlayOpacity, 1);
     oCtx.fillRect(0, 0, w, h);
+    // Second pass for values above 0.5 — darkens further
+    if (overlayOpacity > 0.5) {
+      oCtx.globalAlpha = (overlayOpacity - 0.5) * 2;
+      oCtx.fillRect(0, 0, w, h);
+    }
     oCtx.globalAlpha = 1;
 
     // Punch holes for each light
