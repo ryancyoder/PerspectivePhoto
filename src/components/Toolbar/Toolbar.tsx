@@ -16,6 +16,7 @@ import {
   FolderDown,
   FolderUp,
   Table2,
+  Lightbulb,
 } from 'lucide-react';
 import { useCustomStampStore } from '../../store/useCustomStampStore';
 import { SettingsMenu } from '../SettingsMenu';
@@ -167,15 +168,18 @@ export function Toolbar({ stageRef, onOpenPlantTable }: ToolbarProps) {
     }, 50);
   }, [stageRef]);
 
-  const tools: { mode: ToolMode; icon: typeof MousePointer2; label: string; planOnly?: boolean; photoOnly?: boolean }[] = [
+  const isLighting = viewMode === 'lighting';
+
+  const tools: { mode: ToolMode; icon: typeof MousePointer2; label: string; planOnly?: boolean; photoOnly?: boolean; lightingOnly?: boolean }[] = [
     { mode: 'select', icon: MousePointer2, label: 'Select' },
     { mode: 'calibrate', icon: PersonStanding, label: 'Calibrate', photoOnly: true },
     { mode: 'eraser', icon: Eraser, label: 'Erase Overlay', photoOnly: true },
     { mode: 'objEraser', icon: CircleOff, label: 'Object Eraser', planOnly: true },
+    { mode: 'placeLight', icon: Lightbulb, label: 'Place Light', lightingOnly: true },
   ];
 
   const filteredTools = tools.filter(t =>
-    (!t.planOnly || isPlan) && (!t.photoOnly || !isPlan)
+    (!t.planOnly || isPlan) && (!t.photoOnly || !isPlan && !isLighting) && (!t.lightingOnly || isLighting)
   );
 
   return (
@@ -195,7 +199,14 @@ export function Toolbar({ stageRef, onOpenPlantTable }: ToolbarProps) {
       {filteredTools.map(({ mode, icon: Icon, label }) => (
         <ToolButton
           key={mode}
-          onClick={() => setToolMode(mode)}
+          onClick={() => {
+            setToolMode(mode);
+            if (mode === 'placeLight') {
+              useProjectStore.getState().setPendingLightType(
+                useProjectStore.getState().pendingLightType ?? 'path'
+              );
+            }
+          }}
           active={toolMode === mode}
           label={label}
         >
@@ -216,7 +227,7 @@ export function Toolbar({ stageRef, onOpenPlantTable }: ToolbarProps) {
 
       <div className="w-px h-8 bg-gray-200 mx-1" />
 
-      {/* Photo / Plan toggle */}
+      {/* Photo / Plan / Lighting toggle */}
       <div className="flex bg-gray-100 rounded-lg p-0.5">
         <button
           onClick={() => setViewMode('photo')}
@@ -235,6 +246,15 @@ export function Toolbar({ stageRef, onOpenPlantTable }: ToolbarProps) {
         >
           <LayoutGrid size={14} />
           Plan
+        </button>
+        <button
+          onClick={() => setViewMode('lighting')}
+          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+            viewMode === 'lighting' ? 'bg-white text-amber-600 shadow-sm' : 'text-gray-500'
+          }`}
+        >
+          <Lightbulb size={14} />
+          Lighting
         </button>
       </div>
 

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuid } from 'uuid';
-import type { PlacedStamp, PerspectiveConfig, ToolMode, HistoryEntry, ViewMode, PlanViewConfig, Point2D, CustomSubcategory } from '../types';
+import type { PlacedStamp, PerspectiveConfig, ToolMode, HistoryEntry, ViewMode, PlanViewConfig, Point2D, CustomSubcategory, LightSource, LightingConfig, LightPreset } from '../types';
 import { createDefaultPerspective } from '../engine/perspective';
 import { TOP_LEVEL_CATEGORIES } from '../engine/categoryGroups';
 import { saveProjectState, loadProjectState, usePlanSymbolStore } from './useCustomStampStore';
@@ -41,6 +41,11 @@ interface ProjectState {
   planView: PlanViewConfig;
   planPixelsPerFoot: number | null;
   clusterMode: boolean;
+
+  // Lighting
+  lightingConfig: LightingConfig;
+  selectedLightId: string | null;
+  pendingLightType: LightPreset | null;
 
   // Sidebar
   sidebarCollapsed: boolean;
@@ -102,6 +107,15 @@ interface ProjectState {
   removeCustomSubcategory: (id: string) => void;
   renameCustomSubcategory: (id: string, label: string) => void;
 
+  // Lighting actions
+  addLight: (x: number, y: number, type: LightPreset) => void;
+  updateLight: (id: string, update: Partial<LightSource>) => void;
+  removeLight: (id: string) => void;
+  selectLight: (id: string | null) => void;
+  duplicateLight: (id: string) => void;
+  setLightingOverlay: (color: string, opacity: number) => void;
+  setPendingLightType: (type: LightPreset | null) => void;
+
   undo: () => void;
   redo: () => void;
   pushHistory: () => void;
@@ -135,6 +149,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   viewMode: 'photo',
   planPixelsPerFoot: null,
   clusterMode: false,
+  lightingConfig: {
+    lights: [],
+    overlayColor: 'rgba(40, 0, 80, 0.6)',
+    overlayOpacity: 0.6,
+  },
+  selectedLightId: null,
+  pendingLightType: null,
   planView: {
     image: null,
     imageWidth: 0,
@@ -438,6 +459,84 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }));
   },
 
+  // ---- Lighting actions ----
+
+  addLight: (x, y, type) => {
+    const presets: Record<string, Partial<LightSource>> = {
+      uplight:   { radius: 120, intensity: 0.8, spreadX: 0.6, spreadY: 1.8, color: 'warm' },
+      path:      { radius: 80,  intensity: 0.7, spreadX: 1.0, spreadY: 1.0, color: 'warm' },
+      spotlight: { radius: 150, intensity: 0.85, spreadX: 0.7, spreadY: 1.2, color: 'warm' },
+    };
+    const defaults = presets[type] ?? presets.path;
+    const light: LightSource = {
+      id: uuid(),
+      x, y, type,
+      radius: defaults.radius ?? 120,
+      intensity: defaults.intensity ?? 0.8,
+      color: defaults.color ?? 'warm',
+      rotation: 0,
+      spreadX: defaults.spreadX ?? 1.0,
+      spreadY: defaults.spreadY ?? 1.0,
+    };
+    set((state) => ({
+      lightingConfig: {
+        ...state.lightingConfig,
+        lights: [...state.lightingConfig.lights, light],
+      },
+      selectedLightId: light.id,
+    }));
+  },
+
+  updateLight: (id, update) =>
+    set((state) => ({
+      lightingConfig: {
+        ...state.lightingConfig,
+        lights: state.lightingConfig.lights.map((l) =>
+          l.id === id ? { ...l, ...update } : l
+        ),
+      },
+    })),
+
+  removeLight: (id) =>
+    set((state) => ({
+      lightingConfig: {
+        ...state.lightingConfig,
+        lights: state.lightingConfig.lights.filter((l) => l.id !== id),
+      },
+      selectedLightId: state.selectedLightId === id ? null : state.selectedLightId,
+    })),
+
+  selectLight: (id) => set({ selectedLightId: id }),
+
+  duplicateLight: (id) => {
+    const light = get().lightingConfig.lights.find((l) => l.id === id);
+    if (!light) return;
+    const newLight: LightSource = {
+      ...light,
+      id: uuid(),
+      x: Math.min(1, light.x + 0.03),
+      y: Math.min(1, light.y + 0.03),
+    };
+    set((state) => ({
+      lightingConfig: {
+        ...state.lightingConfig,
+        lights: [...state.lightingConfig.lights, newLight],
+      },
+      selectedLightId: newLight.id,
+    }));
+  },
+
+  setLightingOverlay: (color, opacity) =>
+    set((state) => ({
+      lightingConfig: {
+        ...state.lightingConfig,
+        overlayColor: color,
+        overlayOpacity: opacity,
+      },
+    })),
+
+  setPendingLightType: (type) => set({ pendingLightType: type }),
+
   pushHistory: () =>
     set((state) => {
       const entry: HistoryEntry = {
@@ -486,6 +585,7 @@ const SAVE_KEYS = [
   'backgroundImage', 'backgroundWidth', 'backgroundHeight',
   'backgroundSaturation', 'backgroundOpacity', 'backgroundBrightness', 'backgroundContrast',
   'perspective', 'stamps', 'planStamps', 'planView', 'planPixelsPerFoot', 'clusterMode',
+  'lightingConfig',
   'customSubcategories', 'activeTopCategory', 'activeCategory',
 ] as const;
 

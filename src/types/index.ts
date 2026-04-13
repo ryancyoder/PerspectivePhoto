@@ -9,7 +9,7 @@ export interface CustomSubcategory {
   topLevel: string;
 }
 
-export type ToolMode = 'select' | 'horizon' | 'calibrate' | 'eraser' | 'objEraser' | 'pan';
+export type ToolMode = 'select' | 'horizon' | 'calibrate' | 'eraser' | 'objEraser' | 'pan' | 'placeLight';
 
 export interface CalibrationRef {
   x: number;           // position of the reference person
@@ -91,7 +91,30 @@ export interface HistoryEntry {
   perspective: PerspectiveConfig;
 }
 
-export type ViewMode = 'photo' | 'plan';
+export type ViewMode = 'photo' | 'plan' | 'lighting';
+
+// ---- Lighting System ----
+
+export type LightPreset = 'uplight' | 'path' | 'spotlight';
+
+export interface LightSource {
+  id: string;
+  x: number;           // 0-1 normalized (fraction of backgroundWidth)
+  y: number;           // 0-1 normalized (fraction of backgroundHeight)
+  type: LightPreset;
+  radius: number;      // pixel radius at native image resolution
+  intensity: number;   // 0-1, controls gradient alpha
+  color: string;       // 'warm' | 'cool' | hex color
+  rotation: number;    // degrees
+  spreadX: number;     // horizontal stretch multiplier
+  spreadY: number;     // vertical stretch multiplier
+}
+
+export interface LightingConfig {
+  lights: LightSource[];
+  overlayColor: string;    // e.g. 'rgba(40, 0, 80, 0.6)'
+  overlayOpacity: number;  // 0-1
+}
 
 /** 2D point */
 export interface Point2D {

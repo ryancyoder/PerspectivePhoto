@@ -156,8 +156,8 @@ export function ToolsSidebar() {
 
       <div className="flex-1" />
 
-      {/* Top-level category icons (lower half) */}
-      <TopCategoryIcons />
+      {/* Lower section: category icons (photo/plan) or light presets (lighting) */}
+      {viewMode === 'lighting' ? <LightPresetButtons /> : <TopCategoryIcons />}
     </div>
   );
 }
@@ -385,5 +385,88 @@ function MoveOnlyButton() {
       </svg>
       {moveOnly ? 'MOVE' : 'Move'}
     </button>
+  );
+}
+
+function LightPresetButtons() {
+  const pendingLightType = useProjectStore((s) => s.pendingLightType);
+  const setPendingLightType = useProjectStore((s) => s.setPendingLightType);
+  const setToolMode = useProjectStore((s) => s.setToolMode);
+  const selectedLightId = useProjectStore((s) => s.selectedLightId);
+  const removeLight = useProjectStore((s) => s.removeLight);
+
+  const presets: { id: 'uplight' | 'path' | 'spotlight'; label: string; icon: () => React.ReactElement }[] = [
+    { id: 'uplight', label: 'Uplight', icon: UplightIcon },
+    { id: 'path', label: 'Path', icon: PathLightIcon },
+    { id: 'spotlight', label: 'Spot', icon: SpotlightIcon },
+  ];
+
+  return (
+    <div className="w-full border-t border-gray-200/50 pt-1 pb-1 flex flex-col items-center gap-1">
+      <div className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">
+        Lights
+      </div>
+      {presets.map(({ id, label, icon: Icon }) => (
+        <button
+          key={id}
+          onClick={() => {
+            setPendingLightType(id);
+            setToolMode('placeLight');
+          }}
+          className={`w-[3.375rem] h-[3.375rem] rounded-full backdrop-blur-sm border flex items-center justify-center transition-colors select-none ${
+            pendingLightType === id
+              ? 'bg-amber-500 border-white text-white shadow-lg shadow-amber-500/40'
+              : 'bg-black/30 border-white/20 text-white active:bg-black/50'
+          }`}
+          title={label}
+        >
+          <Icon />
+        </button>
+      ))}
+      {/* Delete selected light */}
+      {selectedLightId && (
+        <button
+          onClick={() => removeLight(selectedLightId)}
+          className="mt-1 w-11 h-11 rounded-full bg-red-500/70 backdrop-blur-sm border border-white/20 flex items-center justify-center active:bg-red-600 transition-colors select-none"
+          title="Delete light"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
+function UplightIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2v6" />
+      <path d="M8 6l4-4 4 4" />
+      <path d="M9 18h6" />
+      <rect x="10" y="14" width="4" height="8" rx="1" />
+    </svg>
+  );
+}
+
+function PathLightIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="6" r="4" />
+      <line x1="12" y1="10" x2="12" y2="22" />
+      <path d="M8 6 A4 4 0 0 0 16 6" />
+    </svg>
+  );
+}
+
+function SpotlightIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 2l6 6 6-6" />
+      <path d="M12 8v4" />
+      <path d="M8 14l4 4 4-4" />
+      <circle cx="12" cy="19" r="2" />
+    </svg>
   );
 }
