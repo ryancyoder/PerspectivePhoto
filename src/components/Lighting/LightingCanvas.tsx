@@ -81,17 +81,19 @@ export function LightingCanvas() {
     return { x: imgX, y: imgY };
   }, [stageX, stageY, stageScale]);
 
-  // Draw a soft brush stroke at image-space position
+  // Draw a single airbrush dab — low opacity, wide soft falloff matching light gradients
   const drawPenStroke = useCallback((imgX: number, imgY: number) => {
     const mc = penMaskCanvasRef.current;
     if (!mc) return;
     const ctx = mc.getContext('2d')!;
     const r = lightingConfig.penBrushSize;
 
-    // Soft radial gradient brush
+    // Match the light gradient curve: center → 50% radius → edge
+    // Use low per-dab opacity so overlapping dabs build up gradually (airbrush effect)
     const gradient = ctx.createRadialGradient(imgX, imgY, 0, imgX, imgY, r);
-    gradient.addColorStop(0, 'rgba(255,255,255,0.8)');
-    gradient.addColorStop(0.6, 'rgba(255,255,255,0.4)');
+    gradient.addColorStop(0, 'rgba(255,255,255,0.12)');
+    gradient.addColorStop(0.3, 'rgba(255,255,255,0.08)');
+    gradient.addColorStop(0.6, 'rgba(255,255,255,0.03)');
     gradient.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = gradient;
     ctx.beginPath();
@@ -99,12 +101,13 @@ export function LightingCanvas() {
     ctx.fill();
   }, [lightingConfig.penBrushSize]);
 
-  // Interpolate between two points for smooth strokes
+  // Interpolate between two points — tight spacing for smooth buildup
   const drawPenLine = useCallback((from: { x: number; y: number }, to: { x: number; y: number }) => {
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    const spacing = Math.max(2, lightingConfig.penBrushSize * 0.3);
+    // Tight spacing relative to brush size — dabs overlap heavily for smooth airbrush buildup
+    const spacing = Math.max(1, lightingConfig.penBrushSize * 0.15);
     const steps = Math.max(1, Math.ceil(dist / spacing));
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
