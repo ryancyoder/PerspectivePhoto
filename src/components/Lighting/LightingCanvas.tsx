@@ -145,6 +145,26 @@ export function LightingCanvas() {
         </div>
       )}
 
+      {/* Overlay darkness control */}
+      {backgroundImage && (
+        <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm rounded-xl px-3 py-2 flex items-center gap-2 z-10">
+          <span className="text-[10px] text-white/70 font-medium">Darkness</span>
+          <input
+            type="range"
+            min={0.1}
+            max={1}
+            step={0.05}
+            value={lightingConfig.overlayOpacity}
+            onChange={(e) => {
+              const val = parseFloat(e.target.value);
+              useProjectStore.getState().setLightingOverlay(lightingConfig.overlayColor, val);
+            }}
+            className="w-24 h-1.5 accent-violet-400"
+          />
+          <span className="text-[10px] text-white/70 w-7 text-right">{Math.round(lightingConfig.overlayOpacity * 100)}%</span>
+        </div>
+      )}
+
       {/* Properties panel */}
       <LightPropertiesPanel />
     </div>
