@@ -17,6 +17,7 @@ import {
   FolderUp,
   Table2,
   Lightbulb,
+  PenTool,
 } from 'lucide-react';
 import { useCustomStampStore } from '../../store/useCustomStampStore';
 import { SettingsMenu } from '../SettingsMenu';
@@ -176,6 +177,7 @@ export function Toolbar({ stageRef, onOpenPlantTable }: ToolbarProps) {
     { mode: 'eraser', icon: Eraser, label: 'Erase Overlay', photoOnly: true },
     { mode: 'objEraser', icon: CircleOff, label: 'Object Eraser', planOnly: true },
     { mode: 'placeLight', icon: Lightbulb, label: 'Place Light', lightingOnly: true },
+    { mode: 'lightPen', icon: PenTool, label: 'Light Pen', lightingOnly: true },
   ];
 
   const filteredTools = tools.filter(t =>

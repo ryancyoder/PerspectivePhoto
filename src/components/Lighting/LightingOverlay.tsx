@@ -9,6 +9,11 @@ interface Props {
   lights: LightSource[];
   overlayColor: string;
   overlayOpacity: number;
+  penMask: string | null;
+  /** Exposed so LightingCanvas can draw strokes directly during a drag */
+  penMaskCanvasRef?: React.MutableRefObject<HTMLCanvasElement | null>;
+  /** Incremented by LightingCanvas on each pen stroke to trigger re-render */
+  penMaskVersion?: number;
 }
 
 export function LightingOverlay({
@@ -18,12 +23,28 @@ export function LightingOverlay({
   lights,
   overlayColor,
   overlayOpacity,
+  penMask,
+  penMaskCanvasRef,
+  penMaskVersion,
 }: Props) {
   const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const displayCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const bgImageRef = useRef<HTMLImageElement | null>(null);
+  const internalMaskRef = useRef<HTMLCanvasElement | null>(null);
   const [displayCanvas, setDisplayCanvas] = useState<HTMLCanvasElement | null>(null);
   const rafRef = useRef(0);
+
+  // Expose the internal mask canvas so LightingCanvas can paint on it
+  useEffect(() => {
+    if (penMaskCanvasRef) {
+      if (!internalMaskRef.current && bgWidth && bgHeight) {
+        internalMaskRef.current = document.createElement('canvas');
+        internalMaskRef.current.width = bgWidth;
+        internalMaskRef.current.height = bgHeight;
+      }
+      penMaskCanvasRef.current = internalMaskRef.current;
+    }
+  }, [penMaskCanvasRef, bgWidth, bgHeight]);
 
   // Load background image element
   useEffect(() => {
@@ -35,6 +56,26 @@ export function LightingOverlay({
     };
     img.src = backgroundImage;
   }, [backgroundImage]);
+
+  // Load persisted pen mask from data URL into the mask canvas
+  useEffect(() => {
+    if (!penMask || !bgWidth || !bgHeight) return;
+    if (!internalMaskRef.current) {
+      internalMaskRef.current = document.createElement('canvas');
+    }
+    const mc = internalMaskRef.current;
+    mc.width = bgWidth;
+    mc.height = bgHeight;
+    const img = new window.Image();
+    img.onload = () => {
+      const ctx = mc.getContext('2d')!;
+      ctx.clearRect(0, 0, bgWidth, bgHeight);
+      ctx.drawImage(img, 0, 0);
+      if (penMaskCanvasRef) penMaskCanvasRef.current = mc;
+      render();
+    };
+    img.src = penMask;
+  }, [penMask, bgWidth, bgHeight]);
 
   // Ensure offscreen canvases exist and are sized correctly
   useEffect(() => {
@@ -49,6 +90,11 @@ export function LightingOverlay({
     overlayCanvasRef.current.height = bgHeight;
     displayCanvasRef.current.width = bgWidth;
     displayCanvasRef.current.height = bgHeight;
+    if (!internalMaskRef.current) {
+      internalMaskRef.current = document.createElement('canvas');
+      internalMaskRef.current.width = bgWidth;
+      internalMaskRef.current.height = bgHeight;
+    }
   }, [bgWidth, bgHeight]);
 
   function render() {
@@ -60,18 +106,15 @@ export function LightingOverlay({
     const w = bgWidth;
     const h = bgHeight;
 
-    // ---- Overlay canvas: fill night color, punch out lights ----
+    // ---- Overlay canvas: fill night color, punch out lights + pen mask ----
     const oCtx = overlayCanvas.getContext('2d')!;
     oCtx.clearRect(0, 0, w, h);
 
-    // Parse the overlay color but override opacity
-    // Use a solid color and control darkness entirely via globalAlpha
-    // Stack two passes so higher values can reach near-total darkness
+    // Solid fill with globalAlpha controlling darkness
     oCtx.globalCompositeOperation = 'source-over';
     oCtx.fillStyle = 'rgb(20, 0, 40)';
     oCtx.globalAlpha = Math.min(overlayOpacity, 1);
     oCtx.fillRect(0, 0, w, h);
-    // Second pass for values above 0.5 — darkens further
     if (overlayOpacity > 0.5) {
       oCtx.globalAlpha = (overlayOpacity - 0.5) * 2;
       oCtx.fillRect(0, 0, w, h);
@@ -100,6 +143,13 @@ export function LightingOverlay({
       oCtx.fill();
       oCtx.restore();
     }
+
+    // Punch out the freehand pen mask
+    const mc = internalMaskRef.current;
+    if (mc && mc.width > 0 && mc.height > 0) {
+      oCtx.drawImage(mc, 0, 0);
+    }
+
     oCtx.globalCompositeOperation = 'source-over';
 
     // ---- Display canvas: background + overlay ----
@@ -108,21 +158,20 @@ export function LightingOverlay({
     dCtx.drawImage(bgImg, 0, 0, w, h);
     dCtx.drawImage(overlayCanvas, 0, 0);
 
-    // Force Konva to pick up the new canvas content by creating a new reference
+    // Force Konva to detect change via new canvas reference
     const freshCanvas = document.createElement('canvas');
     freshCanvas.width = w;
     freshCanvas.height = h;
-    const fCtx = freshCanvas.getContext('2d')!;
-    fCtx.drawImage(dispCanvas, 0, 0);
+    freshCanvas.getContext('2d')!.drawImage(dispCanvas, 0, 0);
     setDisplayCanvas(freshCanvas);
   }
 
-  // Re-render when lights or overlay settings change (RAF-gated)
+  // Re-render when anything changes (RAF-gated)
   useEffect(() => {
     cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => render());
     return () => cancelAnimationFrame(rafRef.current);
-  }, [lights, overlayColor, overlayOpacity, bgWidth, bgHeight, backgroundImage]);
+  }, [lights, overlayColor, overlayOpacity, bgWidth, bgHeight, backgroundImage, penMaskVersion]);
 
   if (!displayCanvas) return null;
 

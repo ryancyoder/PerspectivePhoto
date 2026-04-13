@@ -9,7 +9,7 @@ export interface CustomSubcategory {
   topLevel: string;
 }
 
-export type ToolMode = 'select' | 'horizon' | 'calibrate' | 'eraser' | 'objEraser' | 'pan' | 'placeLight';
+export type ToolMode = 'select' | 'horizon' | 'calibrate' | 'eraser' | 'objEraser' | 'pan' | 'placeLight' | 'lightPen';
 
 export interface CalibrationRef {
   x: number;           // position of the reference person
@@ -114,6 +114,8 @@ export interface LightingConfig {
   lights: LightSource[];
   overlayColor: string;    // e.g. 'rgba(40, 0, 80, 0.6)'
   overlayOpacity: number;  // 0-1
+  penMask: string | null;  // data URL of freehand reveal strokes
+  penBrushSize: number;    // brush radius in image pixels
 }
 
 /** 2D point */

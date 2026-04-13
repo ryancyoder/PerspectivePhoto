@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect } from 'react';
+import { useRef, useCallback, useEffect, useState } from 'react';
 import { Stage, Layer } from 'react-konva';
 import { useProjectStore } from '../../store/useProjectStore';
 import { LightingOverlay } from './LightingOverlay';
@@ -25,6 +25,14 @@ export function LightingCanvas() {
   const addLight = useProjectStore((s) => s.addLight);
   const toolMode = useProjectStore((s) => s.toolMode);
   const pendingLightType = useProjectStore((s) => s.pendingLightType);
+  const setLightingPenMask = useProjectStore((s) => s.setLightingPenMask);
+
+  // Pen drawing state
+  const penMaskCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [penMaskVersion, setPenMaskVersion] = useState(0);
+  const penActive = useRef(false);
+  const penPointerId = useRef<number | null>(null);
+  const lastPenPos = useRef<{ x: number; y: number } | null>(null);
 
   // Resize to fill container
   useEffect(() => {
@@ -61,19 +69,112 @@ export function LightingCanvas() {
     setStageTransform(newScale, pointer.x - mouseX * newScale, pointer.y - mouseY * newScale);
   }, [stageScale, stageX, stageY, setStageTransform]);
 
-  // Click to place light or deselect
-  const handleStageClick = useCallback((e: any) => {
-    const stage = e.target.getStage();
-    // Only handle clicks directly on the stage (empty area) or the overlay image
-    if (e.target !== stage && e.target.getLayer()?.listening()) {
-      // Clicked on an interactive element (like a LightMarker) — let it handle
-      return;
+  // Convert client (screen) coordinates to image-space pixels
+  const clientToImageCoords = useCallback((clientX: number, clientY: number) => {
+    const el = containerRef.current;
+    if (!el) return null;
+    const rect = el.getBoundingClientRect();
+    const canvasX = clientX - rect.left;
+    const canvasY = clientY - rect.top;
+    const imgX = (canvasX - stageX) / stageScale;
+    const imgY = (canvasY - stageY) / stageScale;
+    return { x: imgX, y: imgY };
+  }, [stageX, stageY, stageScale]);
+
+  // Draw a soft brush stroke at image-space position
+  const drawPenStroke = useCallback((imgX: number, imgY: number) => {
+    const mc = penMaskCanvasRef.current;
+    if (!mc) return;
+    const ctx = mc.getContext('2d')!;
+    const r = lightingConfig.penBrushSize;
+
+    // Soft radial gradient brush
+    const gradient = ctx.createRadialGradient(imgX, imgY, 0, imgX, imgY, r);
+    gradient.addColorStop(0, 'rgba(255,255,255,0.8)');
+    gradient.addColorStop(0.6, 'rgba(255,255,255,0.4)');
+    gradient.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(imgX, imgY, r, 0, Math.PI * 2);
+    ctx.fill();
+  }, [lightingConfig.penBrushSize]);
+
+  // Interpolate between two points for smooth strokes
+  const drawPenLine = useCallback((from: { x: number; y: number }, to: { x: number; y: number }) => {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const spacing = Math.max(2, lightingConfig.penBrushSize * 0.3);
+    const steps = Math.max(1, Math.ceil(dist / spacing));
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      drawPenStroke(from.x + dx * t, from.y + dy * t);
     }
+    setPenMaskVersion((v) => v + 1);
+  }, [drawPenStroke, lightingConfig.penBrushSize]);
+
+  // Pointer event handlers for light pen drawing
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const onDown = (e: PointerEvent) => {
+      if (useProjectStore.getState().toolMode !== 'lightPen') return;
+      e.preventDefault();
+      penActive.current = true;
+      penPointerId.current = e.pointerId;
+      const pos = clientToImageCoords(e.clientX, e.clientY);
+      if (!pos) return;
+      lastPenPos.current = pos;
+      drawPenStroke(pos.x, pos.y);
+      setPenMaskVersion((v) => v + 1);
+    };
+
+    const onMove = (e: PointerEvent) => {
+      if (!penActive.current || e.pointerId !== penPointerId.current) return;
+      e.preventDefault();
+      const pos = clientToImageCoords(e.clientX, e.clientY);
+      if (!pos) return;
+      if (lastPenPos.current) {
+        drawPenLine(lastPenPos.current, pos);
+      } else {
+        drawPenStroke(pos.x, pos.y);
+        setPenMaskVersion((v) => v + 1);
+      }
+      lastPenPos.current = pos;
+    };
+
+    const onUp = (e: PointerEvent) => {
+      if (!penActive.current || e.pointerId !== penPointerId.current) return;
+      penActive.current = false;
+      penPointerId.current = null;
+      lastPenPos.current = null;
+      // Persist the mask to store
+      const mc = penMaskCanvasRef.current;
+      if (mc && mc.width > 0) {
+        setLightingPenMask(mc.toDataURL());
+      }
+    };
+
+    el.addEventListener('pointerdown', onDown, { capture: true });
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      el.removeEventListener('pointerdown', onDown, { capture: true });
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+  }, [clientToImageCoords, drawPenStroke, drawPenLine, setLightingPenMask]);
+
+  // Click to place light or deselect (only when NOT in lightPen mode)
+  const handleStageClick = useCallback((e: any) => {
+    if (toolMode === 'lightPen') return; // pen handles its own events
+    const stage = e.target.getStage();
+    if (e.target !== stage && e.target.getLayer()?.listening()) return;
 
     if (toolMode === 'placeLight' && pendingLightType && stage) {
       const pointer = stage.getPointerPosition();
       if (!pointer) return;
-      // Convert to image-space normalized coords
       const imgX = (pointer.x - stageX) / stageScale;
       const imgY = (pointer.y - stageY) / stageScale;
       const normX = imgX / bgWidth;
@@ -87,9 +188,17 @@ export function LightingCanvas() {
   }, [toolMode, pendingLightType, stageX, stageY, stageScale, bgWidth, bgHeight, addLight, selectLight]);
 
   const isPlacing = toolMode === 'placeLight' && !!pendingLightType;
+  const isPenMode = toolMode === 'lightPen';
 
   return (
-    <div ref={containerRef} className="w-full h-full relative" style={{ cursor: isPlacing ? 'crosshair' : 'default' }}>
+    <div
+      ref={containerRef}
+      className="w-full h-full relative"
+      style={{
+        cursor: isPenMode ? 'crosshair' : isPlacing ? 'crosshair' : 'default',
+        touchAction: isPenMode ? 'none' : 'auto',
+      }}
+    >
       <Stage
         width={canvasWidth}
         height={canvasHeight}
@@ -111,6 +220,9 @@ export function LightingCanvas() {
               lights={lightingConfig.lights}
               overlayColor={lightingConfig.overlayColor}
               overlayOpacity={lightingConfig.overlayOpacity}
+              penMask={lightingConfig.penMask}
+              penMaskCanvasRef={penMaskCanvasRef}
+              penMaskVersion={penMaskVersion}
             />
           )}
         </Layer>
@@ -138,6 +250,13 @@ export function LightingCanvas() {
         </div>
       )}
 
+      {/* Pen mode indicator */}
+      {isPenMode && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-violet-500 text-white text-xs font-semibold px-4 py-1.5 rounded-full shadow-lg pointer-events-none">
+          Draw to reveal light
+        </div>
+      )}
+
       {/* No image prompt */}
       {!backgroundImage && (
         <div className="absolute inset-0 flex items-center justify-center">
@@ -145,23 +264,42 @@ export function LightingCanvas() {
         </div>
       )}
 
-      {/* Overlay darkness control */}
+      {/* Overlay darkness + brush size controls */}
       {backgroundImage && (
-        <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm rounded-xl px-3 py-2 flex items-center gap-2 z-10">
-          <span className="text-[10px] text-white/70 font-medium">Darkness</span>
-          <input
-            type="range"
-            min={0.1}
-            max={1}
-            step={0.05}
-            value={lightingConfig.overlayOpacity}
-            onChange={(e) => {
-              const val = parseFloat(e.target.value);
-              useProjectStore.getState().setLightingOverlay(lightingConfig.overlayColor, val);
-            }}
-            className="w-24 h-1.5 accent-violet-400"
-          />
-          <span className="text-[10px] text-white/70 w-7 text-right">{Math.round(lightingConfig.overlayOpacity * 100)}%</span>
+        <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm rounded-xl px-3 py-2 flex flex-col gap-2 z-10">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-white/70 font-medium w-14">Darkness</span>
+            <input
+              type="range"
+              min={0.1}
+              max={1}
+              step={0.05}
+              value={lightingConfig.overlayOpacity}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                useProjectStore.getState().setLightingOverlay(lightingConfig.overlayColor, val);
+              }}
+              className="w-24 h-1.5 accent-violet-400"
+            />
+            <span className="text-[10px] text-white/70 w-7 text-right">{Math.round(lightingConfig.overlayOpacity * 100)}%</span>
+          </div>
+          {isPenMode && (
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-white/70 font-medium w-14">Brush</span>
+              <input
+                type="range"
+                min={5}
+                max={100}
+                step={1}
+                value={lightingConfig.penBrushSize}
+                onChange={(e) => {
+                  useProjectStore.getState().setLightingPenBrushSize(parseInt(e.target.value));
+                }}
+                className="w-24 h-1.5 accent-violet-400"
+              />
+              <span className="text-[10px] text-white/70 w-7 text-right">{lightingConfig.penBrushSize}</span>
+            </div>
+          )}
         </div>
       )}
 

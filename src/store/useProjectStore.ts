@@ -115,6 +115,9 @@ interface ProjectState {
   duplicateLight: (id: string) => void;
   setLightingOverlay: (color: string, opacity: number) => void;
   setPendingLightType: (type: LightPreset | null) => void;
+  setLightingPenMask: (mask: string | null) => void;
+  setLightingPenBrushSize: (size: number) => void;
+  clearLightingPenMask: () => void;
 
   undo: () => void;
   redo: () => void;
@@ -153,6 +156,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     lights: [],
     overlayColor: 'rgba(40, 0, 80, 0.6)',
     overlayOpacity: 0.6,
+    penMask: null,
+    penBrushSize: 30,
   },
   selectedLightId: null,
   pendingLightType: null,
@@ -536,6 +541,21 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     })),
 
   setPendingLightType: (type) => set({ pendingLightType: type }),
+
+  setLightingPenMask: (mask) =>
+    set((state) => ({
+      lightingConfig: { ...state.lightingConfig, penMask: mask },
+    })),
+
+  setLightingPenBrushSize: (size) =>
+    set((state) => ({
+      lightingConfig: { ...state.lightingConfig, penBrushSize: size },
+    })),
+
+  clearLightingPenMask: () =>
+    set((state) => ({
+      lightingConfig: { ...state.lightingConfig, penMask: null },
+    })),
 
   pushHistory: () =>
     set((state) => {

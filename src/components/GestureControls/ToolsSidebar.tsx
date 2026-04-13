@@ -435,6 +435,20 @@ function LightPresetButtons() {
           </svg>
         </button>
       )}
+      {/* Clear pen strokes */}
+      {useProjectStore.getState().lightingConfig.penMask && (
+        <button
+          onClick={() => {
+            if (window.confirm('Clear all pen strokes?')) {
+              useProjectStore.getState().clearLightingPenMask();
+            }
+          }}
+          className="mt-1 w-20 h-8 rounded-full bg-black/30 backdrop-blur-sm border border-white/20 flex items-center justify-center active:bg-red-500 transition-colors select-none"
+          title="Clear pen strokes"
+        >
+          <span className="text-[9px] text-white font-semibold">Clear Pen</span>
+        </button>
+      )}
     </div>
   );
 }
