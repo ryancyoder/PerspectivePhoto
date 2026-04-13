@@ -108,6 +108,8 @@ export interface LightSource {
   rotation: number;    // degrees
   spreadX: number;     // horizontal stretch multiplier
   spreadY: number;     // vertical stretch multiplier
+  beamAngle: number;   // cone beam width in degrees (20-180)
+  distance: number;    // cone reach in pixels from source
 }
 
 export interface LightingConfig {

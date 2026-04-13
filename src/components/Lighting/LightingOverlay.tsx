@@ -126,21 +126,59 @@ export function LightingOverlay({
     for (const light of lights) {
       const px = light.x * w;
       const py = light.y * h;
+      const beam = light.beamAngle ?? 360;
+      const dist = light.distance ?? light.radius;
 
       oCtx.save();
       oCtx.translate(px, py);
       oCtx.rotate((light.rotation * Math.PI) / 180);
-      oCtx.scale(light.spreadX, light.spreadY);
 
-      const gradient = oCtx.createRadialGradient(0, 0, 0, 0, 0, light.radius);
-      gradient.addColorStop(0, `rgba(0,0,0,${light.intensity})`);
-      gradient.addColorStop(0.5, `rgba(0,0,0,${light.intensity * 0.5})`);
-      gradient.addColorStop(1, 'rgba(0,0,0,0)');
+      if (beam >= 360) {
+        // Full omnidirectional light (path lights)
+        oCtx.scale(light.spreadX, light.spreadY);
+        const gradient = oCtx.createRadialGradient(0, 0, 0, 0, 0, light.radius);
+        gradient.addColorStop(0, `rgba(0,0,0,${light.intensity})`);
+        gradient.addColorStop(0.5, `rgba(0,0,0,${light.intensity * 0.5})`);
+        gradient.addColorStop(1, 'rgba(0,0,0,0)');
+        oCtx.fillStyle = gradient;
+        oCtx.beginPath();
+        oCtx.arc(0, 0, light.radius, 0, Math.PI * 2);
+        oCtx.fill();
+      } else {
+        // Cone/wedge beam — emanates upward from the source point
+        // The cone points in the -Y direction (up), rotation controls aim
+        const halfAngle = (beam / 2) * (Math.PI / 180);
+        const startAngle = -Math.PI / 2 - halfAngle;
+        const endAngle = -Math.PI / 2 + halfAngle;
 
-      oCtx.fillStyle = gradient;
-      oCtx.beginPath();
-      oCtx.arc(0, 0, light.radius, 0, Math.PI * 2);
-      oCtx.fill();
+        // Small glow at source point (always present)
+        const sourceGlow = oCtx.createRadialGradient(0, 0, 0, 0, 0, dist * 0.12);
+        sourceGlow.addColorStop(0, `rgba(0,0,0,${light.intensity})`);
+        sourceGlow.addColorStop(1, `rgba(0,0,0,${light.intensity * 0.3})`);
+        oCtx.fillStyle = sourceGlow;
+        oCtx.beginPath();
+        oCtx.arc(0, 0, dist * 0.12, 0, Math.PI * 2);
+        oCtx.fill();
+
+        // Main cone beam — clip to wedge, fill with radial gradient from source
+        oCtx.beginPath();
+        oCtx.moveTo(0, 0);
+        oCtx.arc(0, 0, dist, startAngle, endAngle);
+        oCtx.closePath();
+        oCtx.clip();
+
+        // Radial gradient fills the clipped wedge
+        const coneGrad = oCtx.createRadialGradient(0, 0, 0, 0, 0, dist);
+        coneGrad.addColorStop(0, `rgba(0,0,0,${light.intensity})`);
+        coneGrad.addColorStop(0.3, `rgba(0,0,0,${light.intensity * 0.7})`);
+        coneGrad.addColorStop(0.7, `rgba(0,0,0,${light.intensity * 0.3})`);
+        coneGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        oCtx.fillStyle = coneGrad;
+        oCtx.beginPath();
+        oCtx.arc(0, 0, dist, 0, Math.PI * 2);
+        oCtx.fill();
+      }
+
       oCtx.restore();
     }
 

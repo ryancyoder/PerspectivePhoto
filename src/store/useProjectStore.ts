@@ -468,9 +468,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   addLight: (x, y, type) => {
     const presets: Record<string, Partial<LightSource>> = {
-      uplight:   { radius: 120, intensity: 0.8, spreadX: 0.6, spreadY: 1.8, color: 'warm' },
-      path:      { radius: 80,  intensity: 0.7, spreadX: 1.0, spreadY: 1.0, color: 'warm' },
-      spotlight: { radius: 150, intensity: 0.85, spreadX: 0.7, spreadY: 1.2, color: 'warm' },
+      uplight:   { radius: 120, intensity: 0.8, spreadX: 0.6, spreadY: 1.8, color: 'warm', beamAngle: 60, distance: 200 },
+      path:      { radius: 80,  intensity: 0.7, spreadX: 1.0, spreadY: 1.0, color: 'warm', beamAngle: 360, distance: 80 },
+      spotlight: { radius: 150, intensity: 0.85, spreadX: 0.7, spreadY: 1.2, color: 'warm', beamAngle: 45, distance: 250 },
     };
     const defaults = presets[type] ?? presets.path;
     const light: LightSource = {
@@ -482,6 +482,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       rotation: 0,
       spreadX: defaults.spreadX ?? 1.0,
       spreadY: defaults.spreadY ?? 1.0,
+      beamAngle: defaults.beamAngle ?? 360,
+      distance: defaults.distance ?? 120,
     };
     set((state) => ({
       lightingConfig: {
