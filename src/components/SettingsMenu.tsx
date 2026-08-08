@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Settings, X, RefreshCw, Minus } from 'lucide-react';
+import { Settings, X, RefreshCw, Minus, FolderDown } from 'lucide-react';
 import { useProjectStore } from '../store/useProjectStore';
+import { usePlanSymbolStore } from '../store/useCustomStampStore';
 
 export function SettingsMenu() {
   const [open, setOpen] = useState(false);
@@ -163,6 +164,21 @@ export function SettingsMenu() {
               </button>
             </div>
           )}
+
+          {/* 2D Symbol Library export (for moving symbols to VoiceData) */}
+          <div>
+            <div className="text-xs font-medium text-gray-600 mb-2">2D Symbol Library</div>
+            <button
+              onClick={() => { usePlanSymbolStore.getState().exportLibrary(); }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-gray-100 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
+            >
+              <FolderDown size={16} />
+              Export 2D Symbols
+            </button>
+            <p className="mt-1.5 text-[11px] leading-snug text-gray-400">
+              Downloads a JSON of your plan-view symbols to import into the VoiceData Plant Database.
+            </p>
+          </div>
 
           {/* Hard Refresh */}
           <div>
